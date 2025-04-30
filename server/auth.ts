@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { 
   InsertUser, 
+  insertUserSchema,
   loginSchema, 
   passwordResetRequestSchema, 
   passwordResetSchema, 
