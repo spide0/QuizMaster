@@ -1,6 +1,6 @@
-import { IStorage } from "./storage";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
 import { 
   User, 
   InsertUser, 
@@ -13,6 +13,20 @@ import {
   InsertMark,
   ProfileUpdate
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc } from "drizzle-orm";
+import { 
+  users, 
+  quizCategories, 
+  quizzes, 
+  questions, 
+  attempts, 
+  marks 
+} from "@shared/schema";
+import { pool } from "./db";
+
+// Define the interface for session storage
+type SessionStore = session.Store;
 
 const MemoryStore = createMemoryStore(session);
 
@@ -59,7 +73,7 @@ export interface IStorage {
   getAllCategories(): Promise<{ id: number, name: string }[]>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: SessionStore;
 }
 
 export class MemStorage implements IStorage {
@@ -75,7 +89,7 @@ export class MemStorage implements IStorage {
   private attemptIdCounter: number;
   private markIdCounter: number;
   private categoryIdCounter: number;
-  sessionStore: session.SessionStore;
+  sessionStore: SessionStore;
 
   constructor() {
     this.users = new Map();
@@ -423,4 +437,290 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation
+export class DatabaseStorage implements IStorage {
+  sessionStore: SessionStore;
+
+  constructor() {
+    const PostgresSessionStore = connectPg(session);
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
+
+  // User management
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.verificationToken, token));
+    return user;
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.resetToken, token));
+    return user;
+  }
+
+  async createUser(userData: InsertUser & { verificationToken?: string }): Promise<User> {
+    const [user] = await db.insert(users).values({
+      username: userData.username,
+      email: userData.email,
+      password: userData.password,
+      verificationToken: userData.verificationToken || null,
+    }).returning();
+    
+    return user;
+  }
+
+  async updateUserProfile(userId: number, profileData: ProfileUpdate): Promise<User> {
+    const updateData: Partial<User> = {};
+    
+    if (profileData.username) {
+      updateData.username = profileData.username;
+    }
+    
+    if (profileData.email) {
+      updateData.email = profileData.email;
+    }
+    
+    const [updatedUser] = await db.update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return updatedUser;
+  }
+
+  async updateProfilePicture(userId: number, profilePicture: string): Promise<User> {
+    const [updatedUser] = await db.update(users)
+      .set({ profilePicture })
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return updatedUser;
+  }
+
+  async updatePassword(userId: number, password: string): Promise<void> {
+    await db.update(users)
+      .set({ password })
+      .where(eq(users.id, userId));
+  }
+
+  async verifyUser(userId: number): Promise<void> {
+    await db.update(users)
+      .set({ 
+        isVerified: true,
+        verificationToken: null
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async setResetToken(userId: number, token: string): Promise<void> {
+    await db.update(users)
+      .set({ resetToken: token })
+      .where(eq(users.id, userId));
+  }
+
+  async clearResetToken(userId: number): Promise<void> {
+    await db.update(users)
+      .set({ resetToken: null })
+      .where(eq(users.id, userId));
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    // Delete user attempts first
+    await db.delete(attempts).where(eq(attempts.userId, userId));
+    
+    // Delete the user
+    await db.delete(users).where(eq(users.id, userId));
+  }
+
+  // Quiz management
+  async getAllQuizzes(): Promise<Quiz[]> {
+    return db.select().from(quizzes);
+  }
+
+  async getQuizById(id: number): Promise<Quiz | undefined> {
+    const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, id));
+    return quiz;
+  }
+
+  async createQuiz(quizData: any): Promise<Quiz> {
+    const [quiz] = await db.insert(quizzes).values({
+      title: quizData.title,
+      description: quizData.description || null,
+      categoryId: quizData.categoryId,
+      createdBy: quizData.createdBy,
+      timeLimit: quizData.timeLimit,
+      passingScore: quizData.passingScore,
+    }).returning();
+    
+    return quiz;
+  }
+
+  // Questions management
+  async getQuizQuestions(quizId: number): Promise<Question[]> {
+    return db.select().from(questions).where(eq(questions.quizId, quizId));
+  }
+
+  async createQuestion(questionData: InsertQuestion): Promise<Question> {
+    const [question] = await db.insert(questions).values({
+      quizId: questionData.quizId,
+      questionText: questionData.questionText,
+      options: questionData.options,
+      correctAnswer: questionData.correctAnswer,
+      explanation: questionData.explanation || null
+    }).returning();
+    
+    return question;
+  }
+
+  // Attempt management
+  async getAttemptById(id: number): Promise<Attempt | undefined> {
+    const [attempt] = await db.select().from(attempts).where(eq(attempts.id, id));
+    return attempt;
+  }
+
+  async getOngoingAttempt(userId: number, quizId: number): Promise<Attempt | undefined> {
+    const [attempt] = await db.select().from(attempts).where(
+      and(
+        eq(attempts.userId, userId),
+        eq(attempts.quizId, quizId),
+        eq(attempts.completed, false)
+      )
+    );
+    
+    return attempt;
+  }
+
+  async createAttempt(attemptData: InsertAttempt): Promise<Attempt> {
+    const [attempt] = await db.insert(attempts).values({
+      userId: attemptData.userId,
+      quizId: attemptData.quizId,
+      answers: {},
+    }).returning();
+    
+    return attempt;
+  }
+
+  async updateAttemptAnswers(attemptId: number, answers: Record<string, number>): Promise<Attempt> {
+    const [attempt] = await db.select().from(attempts).where(eq(attempts.id, attemptId));
+    
+    if (!attempt) {
+      throw new Error("Attempt not found");
+    }
+    
+    const updatedAnswers = { ...attempt.answers, ...answers };
+    
+    const [updatedAttempt] = await db.update(attempts)
+      .set({ answers: updatedAnswers })
+      .where(eq(attempts.id, attemptId))
+      .returning();
+      
+    return updatedAttempt;
+  }
+
+  async incrementTabSwitches(attemptId: number): Promise<Attempt> {
+    const [attempt] = await db.select().from(attempts).where(eq(attempts.id, attemptId));
+    
+    if (!attempt) {
+      throw new Error("Attempt not found");
+    }
+    
+    const [updatedAttempt] = await db.update(attempts)
+      .set({ tabSwitches: (attempt.tabSwitches || 0) + 1 })
+      .where(eq(attempts.id, attemptId))
+      .returning();
+      
+    return updatedAttempt;
+  }
+
+  async completeAttempt(attemptId: number, score: number): Promise<Attempt> {
+    const [updatedAttempt] = await db.update(attempts)
+      .set({ 
+        endTime: new Date(),
+        score,
+        completed: true
+      })
+      .where(eq(attempts.id, attemptId))
+      .returning();
+      
+    return updatedAttempt;
+  }
+
+  async getUserAttempts(userId: number): Promise<Attempt[]> {
+    return db.select()
+      .from(attempts)
+      .where(eq(attempts.userId, userId))
+      .orderBy(desc(attempts.startTime));
+  }
+
+  async getActiveAttempts(): Promise<Attempt[]> {
+    return db.select()
+      .from(attempts)
+      .where(eq(attempts.completed, false));
+  }
+
+  // Mark management
+  async getAllMarks(): Promise<Mark[]> {
+    return db.select()
+      .from(marks)
+      .orderBy(desc(marks.threshold));
+  }
+
+  async createMark(markData: InsertMark): Promise<Mark> {
+    const [mark] = await db.insert(marks).values({
+      mark: markData.mark,
+      justification: markData.justification,
+      internalRoute: markData.internalRoute,
+      threshold: markData.threshold
+    }).returning();
+    
+    return mark;
+  }
+
+  // Category management
+  async getAllCategories(): Promise<{ id: number, name: string }[]> {
+    return db.select().from(quizCategories);
+  }
+
+  // Initialize default categories if needed
+  async initializeDefaultCategories(): Promise<void> {
+    const existingCategories = await this.getAllCategories();
+    
+    if (existingCategories.length === 0) {
+      const defaultCategories = [
+        "Mathematics",
+        "Science",
+        "Language",
+        "History",
+        "Geography",
+        "Computer Science",
+        "Other"
+      ];
+      
+      for (const categoryName of defaultCategories) {
+        await db.insert(quizCategories).values({
+          name: categoryName
+        });
+      }
+    }
+  }
+}
+
+// Use database storage
+export const storage = new DatabaseStorage();
