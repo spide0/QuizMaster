@@ -1,19 +1,28 @@
 import { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 import { Mark } from '@shared/schema';
+import { useQuery } from '@tanstack/react-query';
 
 interface D3MarksTableProps {
   marks: Mark[];
   className?: string;
 }
 
-// Simulated real-time marks data (for demo)
-interface RealTimeMark {
-  id: string;
-  mark: number;
-  label: string;
+// Real-time performance data structure
+interface UserPerformance {
+  mark: string;
   justification: string;
   internalRoute: string;
+  count: number;
+  attempts: {
+    id: number;
+    userId: number;
+    quizId: number;
+    score: number | null;
+    tabSwitches: number | null;
+    startTime: string;
+    endTime: string | null;
+  }[];
 }
 
 export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
@@ -21,35 +30,13 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const barChartRef = useRef<SVGSVGElement>(null);
   const pieChartRef = useRef<SVGSVGElement>(null);
-  const [realTimeMarks, setRealTimeMarks] = useState<RealTimeMark[]>([
-    { id: "1", mark: 12, label: "Row 1", justification: "Good analysis", internalRoute: "/analysis" },
-    { id: "2", mark: 13, label: "Row 2", justification: "Excellent presentation", internalRoute: "/presentation" },
-    { id: "3", mark: 10, label: "Row 3", justification: "Lacks depth", internalRoute: "/summary" }
-  ]);
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Randomly modify one of the marks by +/-1
-      setRealTimeMarks(prevMarks => {
-        const newMarks = [...prevMarks];
-        const randomIndex = Math.floor(Math.random() * newMarks.length);
-        const change = Math.random() > 0.5 ? 1 : -1;
-        
-        // Only change if within reasonable bounds (8-15)
-        if (newMarks[randomIndex].mark + change >= 8 && newMarks[randomIndex].mark + change <= 15) {
-          newMarks[randomIndex] = {
-            ...newMarks[randomIndex],
-            mark: newMarks[randomIndex].mark + change
-          };
-        }
-        
-        return newMarks;
-      });
-    }, 5000); // Update every 5 seconds
-    
-    return () => clearInterval(interval);
-  }, []);
+  
+  // Fetch real-time user performance data
+  const { data: performanceData = [], isLoading, error } = useQuery<UserPerformance[]>({
+    queryKey: ['/api/user-performance'],
+    // Refetch every minute to get fresh data
+    refetchInterval: 60000,
+  });
 
   useEffect(() => {
     if (!marks.length || !svgRef.current || !containerRef.current) return;
