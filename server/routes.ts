@@ -3,13 +3,16 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { setupWebSocketServer } from "./socket";
 import { storage } from "./storage";
+import { db } from "./db";
 import { 
   insertQuizSchema, 
   insertQuestionSchema, 
   insertAttemptSchema,
   marks,
-  insertMarkSchema
+  insertMarkSchema,
+  users
 } from "@shared/schema";
+import { eq, ne } from "drizzle-orm";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 
@@ -358,6 +361,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(activeAttempts);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch active attempts" });
+    }
+  });
+  
+  // Get all completed attempts (for admin results view)
+  app.get("/api/admin/attempts", async (req, res) => {
+    try {
+      const error = isAdmin(req, res);
+      if (error) return;
+      
+      const completedAttempts = await storage.getCompletedAttempts();
+      
+      // For each attempt, fetch the associated quiz data
+      const attemptsWithDetails = await Promise.all(completedAttempts.map(async (attempt) => {
+        const quiz = await storage.getQuizById(attempt.quizId);
+        return {
+          ...attempt,
+          quiz: quiz || undefined
+        };
+      }));
+      
+      res.json(attemptsWithDetails);
+    } catch (error) {
+      console.error("Error fetching all attempts:", error);
+      res.status(500).json({ message: "Failed to fetch completed attempts" });
+    }
+  });
+  
+  // Get all users (for admin results view)
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      const error = isAdmin(req, res);
+      if (error) return;
+      
+      // Get all users from the database
+      const allUsers = await db.select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        role: users.role,
+        profilePicture: users.profilePicture
+      })
+      .from(users)
+      .where(
+        ne(users.id, req.user?.id as number) // Exclude current admin
+      );
+      
+      res.json(allUsers);
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
     }
   });
 

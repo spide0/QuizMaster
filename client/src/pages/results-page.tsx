@@ -1,11 +1,14 @@
 import { useParams } from "wouter";
 import { Navbar } from "@/components/navbar";
 import { QuizResults } from "@/components/quiz-results-updated";
+import { AdminResultsView } from "@/components/admin-results-view";
+import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Attempt {
   id: number;
@@ -26,6 +29,9 @@ interface Mark {
 }
 
 export default function ResultsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  
   // Check if there's a specific attempt ID in the URL
   const { id } = useParams<{ id: string }>();
 
@@ -40,6 +46,9 @@ export default function ResultsPage() {
     queryKey: ['/api/marks'],
     enabled: !id
   });
+  
+  // Active tab state for admins (my results vs. all users results)
+  const [activeTab, setActiveTab] = useState<string>("my-results");
 
   // Filter to only completed attempts if we're showing all
   const completedAttempts = attempts.filter(attempt => attempt.completed);
