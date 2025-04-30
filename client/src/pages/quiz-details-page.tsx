@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Loader2, Clock, HelpCircle, Award, ArrowLeft } from "lucide-react";
+import { Loader2, Clock, HelpCircle, Award, ArrowLeft, ShieldAlert } from "lucide-react";
 
 interface Quiz {
   id: number;
@@ -32,6 +33,10 @@ export default function QuizDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const { user } = useAuth(); // Get current user
+  
+  // Determine if the user can attempt quizzes (only regular users, not admins)
+  const canAttemptQuizzes = user?.role !== 'admin';
   
   // Fetch quiz details
   const { data: quiz, isLoading: isLoadingQuiz } = useQuery<Quiz>({
@@ -174,29 +179,50 @@ export default function QuizDetailsPage() {
             </CardContent>
             
             <CardFooter className="bg-gray-50 border-t border-gray-200 p-6">
-              <AlertDialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
-                <AlertDialogTrigger asChild>
-                  <Button className="w-full sm:w-auto">Start Quiz</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you ready to begin?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      You're about to start "{quiz.title}" quiz. It contains {questions.length} questions 
-                      and you have {quiz.timeLimit} minutes to complete it. The timer will start immediately.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={handleStartQuiz}
-                      className="bg-primary hover:bg-primary/90"
-                    >
-                      Start Now
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {canAttemptQuizzes ? (
+                <AlertDialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button className="w-full sm:w-auto">Start Quiz</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you ready to begin?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        You're about to start "{quiz.title}" quiz. It contains {questions.length} questions 
+                        and you have {quiz.timeLimit} minutes to complete it. The timer will start immediately.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleStartQuiz}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        Start Now
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : (
+                <div className="flex flex-col space-y-3 w-full">
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start">
+                    <ShieldAlert className="h-5 w-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-medium text-red-800">Admin Restriction</h3>
+                      <p className="mt-1 text-sm text-red-700">
+                        As an admin user, you cannot attempt quizzes. You can only create and manage quizzes.
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setLocation('/quizzes')}
+                    className="self-start"
+                  >
+                    Return to Quiz List
+                  </Button>
+                </div>
+              )}
             </CardFooter>
           </Card>
         </div>
