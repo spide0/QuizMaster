@@ -39,7 +39,7 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
   });
 
   useEffect(() => {
-    if (!marks.length || !svgRef.current || !containerRef.current) return;
+    if (!marks.length || !svgRef.current || !containerRef.current || !performanceData) return;
 
     // Clear existing elements
     d3.select(svgRef.current).selectAll('*').remove();
@@ -82,16 +82,18 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [marks, realTimeMarks]);
+  }, [marks, performanceData]);
 
-  // Render the Marks Table based on the screenshot
+  // Render the Marks Table with real performance data
   const renderTable = () => {
+    if (!performanceData.length) return;
+    
     const svg = d3.select(svgRef.current);
     const containerWidth = containerRef.current?.clientWidth || 800;
     
     // Set SVG dimensions
     svg.attr('width', containerWidth)
-       .attr('height', (realTimeMarks.length + 1) * 50);
+       .attr('height', (performanceData.length + 1) * 50);
     
     // Column widths
     const colWidths = [
@@ -141,7 +143,7 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
     
     // Create data rows
     const rows = svg.selectAll('.data-row')
-      .data(realTimeMarks)
+      .data(performanceData)
       .enter()
       .append('g')
       .attr('class', 'data-row')
@@ -208,7 +210,7 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
 
   // Render the Bar Chart for real-time marks visualization
   const renderBarChart = () => {
-    if (!barChartRef.current) return;
+    if (!barChartRef.current || !performanceData.length) return;
     
     const chart = d3.select(barChartRef.current);
     const containerWidth = containerRef.current?.clientWidth || 800;
@@ -218,10 +220,12 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
     chart.attr('width', containerWidth)
          .attr('height', chartHeight);
     
-    // Prepare data
-    const data = realTimeMarks.map(d => ({
-      label: d.label,
-      value: d.mark
+    // Prepare data - use the count of students in each mark category
+    const data = performanceData.map(d => ({
+      label: d.mark.split(' ')[0], // Just use the letter grade (A, B, C, etc.)
+      fullLabel: d.mark,
+      value: d.count,
+      attempts: d.attempts
     }));
     
     // Create scales
@@ -230,14 +234,17 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .range([60, containerWidth - 30])
       .padding(0.3);
     
+    // Find max value for y scale
+    const maxCount = d3.max(data, d => d.value) || 10;
+    
     const yScale = d3.scaleLinear()
-      .domain([0, 15]) // Fixed range for marks from 0-15
+      .domain([0, maxCount + 2]) // Add some padding
       .range([chartHeight - 60, 30]);
     
     // Create axes
     const xAxis = d3.axisBottom(xScale);
     const yAxis = d3.axisLeft(yScale)
-      .ticks(8)
+      .ticks(5)
       .tickFormat(d => `${d}`);
     
     // Add grid lines
@@ -245,7 +252,7 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .attr('class', 'grid')
       .attr('transform', `translate(60,0)`)
       .call(d3.axisLeft(yScale)
-        .ticks(8)
+        .ticks(5)
         .tickSize(-containerWidth + 90)
         .tickFormat(() => '')
       )
@@ -269,6 +276,11 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .attr('transform', 'translate(60,0)')
       .call(yAxis);
     
+    // Create color scale based on mark grades
+    const colorScale = d3.scaleOrdinal<string>()
+      .domain(data.map(d => d.label))
+      .range(['#10B981', '#34D399', '#6EE7B7', '#F59E0B', '#EF4444']);
+    
     // Add bars with animation
     chart.selectAll('.bar')
       .data(data)
@@ -279,7 +291,7 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .attr('width', xScale.bandwidth())
       .attr('y', yScale(0))
       .attr('height', 0)
-      .attr('fill', '#4F46E5')
+      .attr('fill', d => colorScale(d.label))
       .attr('rx', 3)
       .attr('ry', 3)
       .transition()
@@ -298,7 +310,7 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .attr('text-anchor', 'middle')
       .attr('font-size', '14px')
       .attr('font-weight', 'bold')
-      .attr('fill', '#4F46E5')
+      .attr('fill', d => colorScale(d.label))
       .text(d => d.value);
     
     // Add title
@@ -309,12 +321,12 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .attr('font-size', '16px')
       .attr('font-weight', 'bold')
       .attr('fill', '#111827')
-      .text('Marks Visualization (Bar Chart)');
+      .text('Student Distribution by Mark');
   };
   
   // Render Pie Chart for the distribution
   const renderPieChart = () => {
-    if (!pieChartRef.current) return;
+    if (!pieChartRef.current || !performanceData.length) return;
     
     const chart = d3.select(pieChartRef.current);
     const containerWidth = containerRef.current?.clientWidth || 800;
@@ -326,17 +338,19 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
          .attr('height', chartHeight);
     
     // Prepare data
-    const data = realTimeMarks.map(d => ({
-      name: d.label,
-      value: d.mark
+    const data = performanceData.map(d => ({
+      name: d.mark.split(' ')[0], // Just use the letter grade (A, B, C, etc.)
+      fullName: d.mark,
+      value: d.count,
+      justification: d.justification
     }));
     
     const total = data.reduce((sum, d) => sum + d.value, 0);
     
-    // Color scale
-    const colors = d3.scaleOrdinal()
+    // Color scale - same as in bar chart for consistency
+    const colors = d3.scaleOrdinal<string>()
       .domain(data.map(d => d.name))
-      .range(['#4F46E5', '#10B981', '#F59E0B']);
+      .range(['#10B981', '#34D399', '#6EE7B7', '#F59E0B', '#EF4444']);
     
     // Pie chart setup
     const pie = d3.pie<typeof data[0]>()
@@ -344,12 +358,12 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .sort(null);
     
     const arc = d3.arc<d3.PieArcDatum<typeof data[0]>>()
-      .innerRadius(0)
+      .innerRadius(radius * 0.5) // Create a donut chart with a hole
       .outerRadius(radius);
     
     const arcLabel = d3.arc<d3.PieArcDatum<typeof data[0]>>()
-      .innerRadius(radius * 0.6)
-      .outerRadius(radius * 0.6);
+      .innerRadius(radius * 0.75)
+      .outerRadius(radius * 0.75);
     
     // Create pie chart group
     const g = chart.append('g')
@@ -365,7 +379,7 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
     // Add path with animation
     arcs.append('path')
       .attr('d', arc)
-      .attr('fill', d => colors(d.data.name) as string)
+      .attr('fill', d => colors(d.data.name))
       .attr('stroke', 'white')
       .attr('stroke-width', 2)
       .transition()
@@ -380,14 +394,14 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
         };
       });
     
-    // Add labels
+    // Add grade labels
     arcs.append('text')
       .attr('transform', d => `translate(${arcLabel.centroid(d)})`)
       .attr('text-anchor', 'middle')
       .attr('font-size', '14px')
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
-      .text(d => `${d.data.value}`);
+      .text(d => d.data.name);
     
     // Add percentage labels
     arcs.append('text')
@@ -398,11 +412,14 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .attr('text-anchor', 'middle')
       .attr('font-size', '12px')
       .attr('fill', 'white')
-      .text(d => `${Math.round((d.data.value / total) * 100)}%`);
+      .text(d => {
+        const percentage = Math.round((d.data.value / total) * 100);
+        return percentage > 0 ? `${percentage}%` : '';
+      });
     
     // Add legend
     const legendG = chart.append('g')
-      .attr('transform', `translate(${containerWidth - 120}, 30)`);
+      .attr('transform', `translate(${containerWidth - 150}, 20)`);
     
     const legend = legendG.selectAll('.legend')
       .data(data)
@@ -414,13 +431,13 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
     legend.append('rect')
       .attr('width', 15)
       .attr('height', 15)
-      .attr('fill', d => colors(d.name) as string);
+      .attr('fill', d => colors(d.name));
     
     legend.append('text')
       .attr('x', 25)
       .attr('y', 12.5)
       .attr('font-size', '12px')
-      .text(d => `${d.name}: ${d.value}`);
+      .text(d => `${d.fullName}: ${d.value}`);
     
     // Add title
     chart.append('text')
@@ -430,7 +447,23 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
       .attr('font-size', '16px')
       .attr('font-weight', 'bold')
       .attr('fill', '#111827')
-      .text('Marks Distribution (Pie Chart)');
+      .text('Performance Distribution by Mark');
+    
+    // Add total count in center
+    g.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.35em')
+      .attr('font-size', '22px')
+      .attr('font-weight', 'bold')
+      .attr('fill', '#111827')
+      .text(`${total}`);
+    
+    g.append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '2.5em')
+      .attr('font-size', '12px')
+      .attr('fill', '#4b5563')
+      .text('Total Students');
   };
 
   return (
