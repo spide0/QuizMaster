@@ -356,9 +356,20 @@ export class MemStorage implements IStorage {
       throw new Error("Attempt not found");
     }
     
-    const updatedAttempt = {
-      ...attempt,
-      answers: { ...attempt.answers, ...answers }
+    // Convert to a regular object if not already
+    const currentAnswers = attempt.answers || {};
+    const updatedAnswers = Object.assign({}, currentAnswers, answers);
+    
+    const updatedAttempt: Attempt = {
+      id: attempt.id,
+      userId: attempt.userId,
+      quizId: attempt.quizId,
+      startTime: attempt.startTime,
+      endTime: attempt.endTime,
+      score: attempt.score,
+      tabSwitches: attempt.tabSwitches,
+      answers: updatedAnswers,
+      completed: attempt.completed
     };
     
     this.attempts.set(attemptId, updatedAttempt);
@@ -371,9 +382,18 @@ export class MemStorage implements IStorage {
       throw new Error("Attempt not found");
     }
     
-    const updatedAttempt = {
-      ...attempt,
-      tabSwitches: attempt.tabSwitches + 1
+    const tabSwitchesCount = attempt.tabSwitches !== null ? attempt.tabSwitches + 1 : 1;
+    
+    const updatedAttempt: Attempt = {
+      id: attempt.id,
+      userId: attempt.userId,
+      quizId: attempt.quizId,
+      startTime: attempt.startTime,
+      endTime: attempt.endTime,
+      score: attempt.score,
+      tabSwitches: tabSwitchesCount,
+      answers: attempt.answers,
+      completed: attempt.completed
     };
     
     this.attempts.set(attemptId, updatedAttempt);
@@ -624,7 +644,9 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Attempt not found");
     }
     
-    const updatedAnswers = { ...attempt.answers, ...answers };
+    // Convert to a regular object if not already
+    const currentAnswers = attempt.answers || {};
+    const updatedAnswers = Object.assign({}, currentAnswers, answers);
     
     const [updatedAttempt] = await db.update(attempts)
       .set({ answers: updatedAnswers })
