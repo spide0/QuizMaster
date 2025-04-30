@@ -134,11 +134,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Start a quiz attempt
+  // Start a quiz attempt (only for regular users, not admins)
   app.post("/api/attempts", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // Prevent admin users from attempting quizzes
+      if (req.user.role === 'admin') {
+        return res.status(403).json({ 
+          message: "Admin users cannot attempt quizzes. Please use a regular user account to take quizzes."
+        });
       }
       
       const attemptData = insertAttemptSchema.parse({
@@ -170,11 +177,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update quiz attempt (submit answers, record tab switches)
+  // Update quiz attempt (submit answers, record tab switches) - only for regular users
   app.patch("/api/attempts/:id", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // Prevent admin users from updating attempts
+      if (req.user.role === 'admin') {
+        return res.status(403).json({ 
+          message: "Admin users cannot participate in quizzes. Please use a regular user account." 
+        });
       }
       
       const attemptId = parseInt(req.params.id);
@@ -232,11 +246,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Dedicated endpoint for tab switching to improve real-time monitoring
+  // Dedicated endpoint for tab switching to improve real-time monitoring - only for regular users
   app.patch("/api/attempts/:id/tab-switch", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // Prevent admin users from attempt tab switching
+      if (req.user.role === 'admin') {
+        return res.status(403).json({ 
+          message: "Admin users cannot participate in quizzes. Please use a regular user account." 
+        });
       }
       
       const attemptId = parseInt(req.params.id);
@@ -268,11 +289,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user's quiz attempts
+  // Get user's quiz attempts (filter for role)
   app.get("/api/user/attempts", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // For admin users, return an empty array as they cannot attempt quizzes
+      if (req.user.role === 'admin') {
+        return res.json([]);
       }
       
       const attempts = await storage.getUserAttempts(req.user.id);
