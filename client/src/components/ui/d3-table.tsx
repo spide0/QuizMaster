@@ -43,39 +43,14 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
 
     // Clear existing elements
     d3.select(svgRef.current).selectAll('*').remove();
-    
-    if (barChartRef.current) {
-      d3.select(barChartRef.current).selectAll('*').remove();
-    }
-    
-    if (pieChartRef.current) {
-      d3.select(pieChartRef.current).selectAll('*').remove();
-    }
 
     // Render table using D3
     renderTable();
-    
-    // Render bar chart
-    renderBarChart();
-    
-    // Render pie chart
-    renderPieChart();
 
     // Handle window resize
     const handleResize = () => {
       d3.select(svgRef.current).selectAll('*').remove();
-      
-      if (barChartRef.current) {
-        d3.select(barChartRef.current).selectAll('*').remove();
-      }
-      
-      if (pieChartRef.current) {
-        d3.select(pieChartRef.current).selectAll('*').remove();
-      }
-      
       renderTable();
-      renderBarChart();
-      renderPieChart();
     };
 
     window.addEventListener('resize', handleResize);
@@ -468,17 +443,62 @@ export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
 
   return (
     <div className={`d3-marks-table ${className}`} ref={containerRef}>
-      <h3 className="text-xl font-bold mb-4">Marks Table (D3.js)</h3>
+      <h3 className="text-xl font-bold mb-4">Marks Distribution by Grade</h3>
       <svg ref={svgRef} className="w-full border rounded-md"></svg>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        <div className="col-span-1">
-          <svg ref={barChartRef} className="w-full h-full bg-white border rounded-md p-4"></svg>
+      {/* Show users for each mark category */}
+      {performanceData.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-medium mb-4">Student Results by Mark</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Mark
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Student Count
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Students
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Average Score
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {performanceData.map((mark, idx) => {
+                  // Calculate average score for this mark
+                  const totalScore = mark.attempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
+                  const avgScore = mark.attempts.length ? Math.round(totalScore / mark.attempts.length) : 0;
+                  
+                  // Get unique users from attempts
+                  const userIds = new Set(mark.attempts.map(a => a.userId));
+                  
+                  return (
+                    <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {mark.mark}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {mark.count}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {Array.from(userIds).length} unique student(s)
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {avgScore}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="col-span-1">
-          <svg ref={pieChartRef} className="w-full h-full bg-white border rounded-md p-4"></svg>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
