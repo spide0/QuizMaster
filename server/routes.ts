@@ -54,6 +54,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch quizzes" });
     }
   });
+  
+  // Get quiz statistics for admin dashboard
+  app.get("/api/admin/quiz-stats", async (req, res) => {
+    try {
+      const error = isAdmin(req, res);
+      if (error) return;
+      
+      const quizzes = await storage.getAllQuizzes();
+      const allAttempts = await storage.getCompletedAttempts();
+      
+      // Calculate statistics for each quiz
+      const quizStats = await Promise.all(quizzes.map(async (quiz) => {
+        // Get attempts for this quiz
+        const quizAttempts = allAttempts.filter(a => a.quizId === quiz.id);
+        
+        // Count unique users who took this quiz
+        const uniqueUsers = new Set(quizAttempts.map(a => a.userId)).size;
+        
+        // Calculate average score
+        const totalScore = quizAttempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
+        const averageScore = quizAttempts.length > 0 ? totalScore / quizAttempts.length : 0;
+        
+        // Get pass rate
+        const passingScore = quiz.passingScore || 70;
+        const passedAttempts = quizAttempts.filter(a => (a.score || 0) >= passingScore).length;
+        const passRate = quizAttempts.length > 0 ? (passedAttempts / quizAttempts.length) * 100 : 0;
+        
+        return {
+          id: quiz.id,
+          title: quiz.title,
+          description: quiz.description,
+          timeLimit: quiz.timeLimit,
+          passingScore,
+          totalAttempts: quizAttempts.length,
+          uniqueUsers,
+          averageScore,
+          passRate,
+          recentAttempt: quizAttempts.length > 0 ? 
+            new Date(Math.max(...quizAttempts.map(a => new Date(a.endTime || a.startTime).getTime()))) : 
+            null
+        };
+      }));
+      
+      // Sort by recent activity
+      quizStats.sort((a, b) => {
+        if (!a.recentAttempt) return 1;
+        if (!b.recentAttempt) return -1;
+        return b.recentAttempt.getTime() - a.recentAttempt.getTime();
+      });
+      
+      res.json(quizStats);
+    } catch (error) {
+      console.error("Error fetching quiz statistics:", error);
+      res.status(500).json({ message: "Failed to fetch quiz statistics" });
+    }
+  });
 
   // Get quiz by ID
   app.get("/api/quizzes/:id", async (req, res) => {

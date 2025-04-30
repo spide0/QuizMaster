@@ -4,7 +4,19 @@ import { useAuth } from "@/hooks/use-auth";
 import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, ClipboardList, ChartLine, Medal, Presentation } from "lucide-react";
+import { 
+  Loader2, 
+  ClipboardList, 
+  ChartLine, 
+  Medal, 
+  Presentation, 
+  Users, 
+  CheckCircle, 
+  AlertCircle, 
+  Clock, 
+  BarChart4 
+} from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 interface Quiz {
   id: number;
@@ -14,6 +26,19 @@ interface Quiz {
   timeLimit: number;
   passingScore: number;
   createdAt: string;
+}
+
+interface QuizStats {
+  id: number;
+  title: string;
+  description: string | null;
+  timeLimit: number;
+  passingScore: number;
+  totalAttempts: number;
+  uniqueUsers: number;
+  averageScore: number;
+  passRate: number;
+  recentAttempt: Date | null;
 }
 
 interface Attempt {
@@ -36,6 +61,7 @@ function formatDate(dateString: string) {
 
 export default function HomePage() {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   
   // Fetch recent attempts
   const { data: attempts = [], isLoading: isLoadingAttempts } = useQuery<Attempt[]>({
@@ -47,6 +73,12 @@ export default function HomePage() {
     queryKey: ["/api/quizzes"],
   });
   
+  // Fetch quiz statistics (for admin users)
+  const { data: quizStats = [], isLoading: isLoadingStats } = useQuery<QuizStats[]>({
+    queryKey: ["/api/admin/quiz-stats"],
+    enabled: isAdmin,
+  });
+  
   // Fetch available quizzes (limit to 3 for dashboard)
   const { data: availableQuizzes = [], isLoading: isLoadingAvailable } = useQuery<Quiz[]>({
     queryKey: ["/api/quizzes", "available"],
@@ -56,7 +88,7 @@ export default function HomePage() {
       
       // For admin users, we'll show quizzes they created
       // For regular users, we'll show quizzes they can take (excluding completed ones)
-      if (user?.role === 'admin') {
+      if (isAdmin) {
         return allQuizzes
           .filter((q: Quiz) => q.createdBy === user.id)
           .slice(0, 3); // Limit to 3 for the dashboard
@@ -123,7 +155,17 @@ export default function HomePage() {
   };
   
   // Loading state
-  const isLoading = isLoadingAttempts || isLoadingQuizzes || isLoadingAvailable;
+  const isLoading = isLoadingAttempts || isLoadingQuizzes || isLoadingAvailable || (isAdmin && isLoadingStats);
+  
+  // Format date for quiz statistics
+  const formatQuizDate = (date: Date | null) => {
+    if (!date) return 'N/A';
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
   
   if (isLoading) {
     return (
@@ -331,6 +373,77 @@ export default function HomePage() {
               </table>
             </div>
           </div>
+
+          {/* Quiz Statistics Section - Admin Only */}
+          {isAdmin && quizStats.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-lg leading-6 font-medium text-gray-900">Quiz Statistics</h2>
+              <div className="mt-2 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sm:pl-6">Quiz Title</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempts</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Score</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pass Rate</th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recent Activity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {quizStats.map((stat) => (
+                      <tr key={stat.id}>
+                        <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          {stat.title}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <ClipboardList className="mr-2 h-4 w-4 text-gray-400" />
+                            {stat.totalAttempts}
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Users className="mr-2 h-4 w-4 text-gray-400" />
+                            {stat.uniqueUsers}
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <BarChart4 className="mr-2 h-4 w-4 text-gray-400" />
+                            {stat.averageScore.toFixed(1)}%
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            {stat.passRate >= 70 ? (
+                              <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                            ) : (
+                              <AlertCircle className="mr-2 h-4 w-4 text-amber-500" />
+                            )}
+                            {stat.passRate.toFixed(1)}%
+                          </div>
+                          <div className="mt-1">
+                            <Progress 
+                              value={stat.passRate} 
+                              className="h-1.5" 
+                              indicatorClassName={stat.passRate >= 70 ? "bg-green-500" : "bg-amber-500"}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Clock className="mr-2 h-4 w-4 text-gray-400" />
+                            {formatQuizDate(stat.recentAttempt)}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Available Quizzes Section - different title based on role */}
           <div className="mt-8">
