@@ -14,7 +14,7 @@ import {
   ProfileUpdate
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNotNull } from "drizzle-orm";
 import { 
   users, 
   quizCategories, 
@@ -64,6 +64,7 @@ export interface IStorage {
   completeAttempt(attemptId: number, score: number): Promise<Attempt>;
   getUserAttempts(userId: number): Promise<Attempt[]>;
   getActiveAttempts(): Promise<Attempt[]>;
+  getCompletedAttempts(): Promise<Attempt[]>;
   
   // Mark management
   getAllMarks(): Promise<Mark[]>;
@@ -429,6 +430,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.attempts.values())
       .filter(attempt => !attempt.completed);
   }
+  
+  async getCompletedAttempts(): Promise<Attempt[]> {
+    return Array.from(this.attempts.values())
+      .filter(attempt => attempt.completed && attempt.score !== null);
+  }
 
   // Mark management
   async getAllMarks(): Promise<Mark[]> {
@@ -695,6 +701,19 @@ export class DatabaseStorage implements IStorage {
     return db.select()
       .from(attempts)
       .where(eq(attempts.completed, false));
+  }
+  
+  async getCompletedAttempts(): Promise<Attempt[]> {
+    return db.select()
+      .from(attempts)
+      .where(
+        and(
+          eq(attempts.completed, true),
+          // Only include attempts with a non-null score
+          // This is a workaround since isNotNull is not available
+          eq(attempts.score !== null, true)
+        )
+      );
   }
 
   // Mark management
