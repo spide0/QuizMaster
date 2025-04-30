@@ -1,504 +1,302 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
-import { Mark } from '@shared/schema';
-import { useQuery } from '@tanstack/react-query';
 
-interface D3MarksTableProps {
-  marks: Mark[];
-  className?: string;
+interface TableData {
+  headers: string[];
+  rows: Record<string, string | number>[];
 }
 
-// Real-time performance data structure
-interface UserPerformance {
-  mark: string;
-  justification: string;
-  internalRoute: string;
-  count: number;
-  attempts: {
-    id: number;
-    userId: number;
-    quizId: number;
-    score: number | null;
-    tabSwitches: number | null;
-    startTime: string;
-    endTime: string | null;
-  }[];
+interface D3TableProps {
+  data: TableData;
+  width?: number;
+  height?: number;
+  cellPadding?: number;
+  colorScale?: string[]; // Array of colors for scale
+  headerColor?: string;
+  borderColor?: string;
+  textColor?: string;
+  highlightColor?: string;
+  valueKey?: string; // Key to use for color scaling
 }
 
-export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
+export function D3Table({
+  data,
+  width = 800,
+  height = 400,
+  cellPadding = 10,
+  colorScale = ['#f8fafc', '#e2e8f0', '#cbd5e1', '#94a3b8', '#64748b', '#475569'],
+  headerColor = '#1e293b',
+  borderColor = '#cbd5e1',
+  textColor = '#334155',
+  highlightColor = '#3b82f6',
+  valueKey
+}: D3TableProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const barChartRef = useRef<SVGSVGElement>(null);
-  const pieChartRef = useRef<SVGSVGElement>(null);
   
-  // Fetch real-time user performance data
-  const { data: performanceData = [], isLoading, error } = useQuery<UserPerformance[]>({
-    queryKey: ['/api/user-performance'],
-    // Refetch every minute to get fresh data
-    refetchInterval: 60000,
-  });
-
   useEffect(() => {
-    if (!marks.length || !svgRef.current || !containerRef.current || !performanceData) return;
-
-    // Clear existing elements
+    if (!svgRef.current || !data || !data.rows || data.rows.length === 0) return;
+    
+    // Clear any existing SVG content
     d3.select(svgRef.current).selectAll('*').remove();
-
-    // Render table using D3
-    renderTable();
-
-    // Handle window resize
-    const handleResize = () => {
-      d3.select(svgRef.current).selectAll('*').remove();
-      renderTable();
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [marks, performanceData]);
-
-  // Render the Marks Table with real performance data
-  const renderTable = () => {
-    if (!performanceData.length) return;
     
     const svg = d3.select(svgRef.current);
-    const containerWidth = containerRef.current?.clientWidth || 800;
+    
+    // Calculate cell dimensions
+    const cellHeight = 40;
+    const tableHeight = (data.rows.length + 1) * cellHeight; // +1 for header row
+    const headerHeight = 50;
+    
+    // Set actual height based on content or provided height
+    const actualHeight = Math.min(height, tableHeight + 100); // Add some padding
     
     // Set SVG dimensions
-    svg.attr('width', containerWidth)
-       .attr('height', (performanceData.length + 1) * 50);
+    svg.attr('width', width)
+       .attr('height', actualHeight)
+       .attr('viewBox', `0 0 ${width} ${actualHeight}`)
+       .attr('preserveAspectRatio', 'xMidYMid meet');
     
-    // Column widths
-    const colWidths = [
-      containerWidth * 0.15, // Mark
-      containerWidth * 0.55, // Justification
-      containerWidth * 0.3   // Internal Route
-    ];
+    // Create table container
+    const table = svg.append('g')
+                     .attr('transform', 'translate(0, 20)');
     
-    // Headers
-    const headers = ['mark', 'justification for this marking', 'internal route'];
+    // Calculate column widths based on data
+    const columnWidths: number[] = [];
+    const totalPadding = cellPadding * 2;
     
-    // Create header row
-    const headerRow = svg.append('g')
-      .attr('class', 'header-row')
-      .attr('transform', 'translate(0,0)');
-    
-    // Create background for header with a border
-    headerRow.append('rect')
-      .attr('width', containerWidth)
-      .attr('height', 40)
-      .attr('fill', '#ffffff')
-      .attr('stroke', '#e5e7eb')
-      .attr('stroke-width', 1);
-    
-    // Add header texts
-    let xOffset = 0;
-    headers.forEach((header, i) => {
-      headerRow.append('text')
-        .attr('x', xOffset + 10)
-        .attr('y', 25)
-        .attr('fill', '#111827')
-        .attr('font-weight', 'bold')
-        .text(header);
+    // Determine column widths based on content
+    data.headers.forEach((header, i) => {
+      // Start with header width
+      let maxWidth = header.length * 8 + totalPadding;
       
-      if (i < headers.length - 1) {
-        headerRow.append('line')
-          .attr('x1', xOffset + colWidths[i])
-          .attr('y1', 0)
-          .attr('x2', xOffset + colWidths[i])
-          .attr('y2', 40)
-          .attr('stroke', '#e5e7eb')
-          .attr('stroke-width', 1);
-      }
+      // Check data row widths
+      data.rows.forEach(row => {
+        const cellValue = String(row[header]);
+        const cellWidth = cellValue.length * 7 + totalPadding;
+        maxWidth = Math.max(maxWidth, cellWidth);
+      });
       
-      xOffset += colWidths[i];
+      // Set minimum width
+      columnWidths[i] = Math.max(maxWidth, 80);
     });
     
-    // Create data rows
-    const rows = svg.selectAll('.data-row')
-      .data(performanceData)
-      .enter()
-      .append('g')
-      .attr('class', 'data-row')
-      .attr('transform', (d, i) => `translate(0,${(i + 1) * 50})`);
+    // Calculate total table width
+    const tableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
+    const scale = tableWidth > width ? width / tableWidth : 1;
     
-    // Create background for rows with borders
-    rows.append('rect')
-      .attr('width', containerWidth)
-      .attr('height', 50)
-      .attr('fill', '#ffffff')
-      .attr('stroke', '#e5e7eb')
-      .attr('stroke-width', 1);
+    // Apply scale if table is wider than available width
+    if (scale < 1) {
+      columnWidths.forEach((w, i) => {
+        columnWidths[i] = w * scale;
+      });
+    }
     
-    // Add row data
-    rows.each(function(d, i) {
-      const row = d3.select(this);
-      let xOffset = 0;
+    // Create a color scale if valueKey is provided
+    let colorScaleFn: d3.ScaleLinear<string, string, never> | null = null;
+    
+    if (valueKey && colorScale) {
+      // Find min and max values for the valueKey
+      const values = data.rows.map(row => Number(row[valueKey])).filter(v => !isNaN(v));
+      const min = Math.min(...values);
+      const max = Math.max(...values);
       
-      // Mark column
-      row.append('text')
-        .attr('x', xOffset + 10)
-        .attr('y', 30)
-        .attr('fill', '#111827')
-        .attr('font-weight', 'medium')
-        .text(d.mark);
-      
-      // Divider
-      row.append('line')
-        .attr('x1', xOffset + colWidths[0])
-        .attr('y1', 0)
-        .attr('x2', xOffset + colWidths[0])
-        .attr('y2', 50)
-        .attr('stroke', '#e5e7eb')
-        .attr('stroke-width', 1);
-      
-      xOffset += colWidths[0];
-      
-      // Justification column
-      row.append('text')
-        .attr('x', xOffset + 10)
-        .attr('y', 30)
-        .attr('fill', '#4b5563')
-        .text(d.justification);
-      
-      // Divider
-      row.append('line')
-        .attr('x1', xOffset + colWidths[1])
-        .attr('y1', 0)
-        .attr('x2', xOffset + colWidths[1])
-        .attr('y2', 50)
-        .attr('stroke', '#e5e7eb')
-        .attr('stroke-width', 1);
-      
-      xOffset += colWidths[1];
-      
-      // Internal route column
-      row.append('text')
-        .attr('x', xOffset + 10)
-        .attr('y', 30)
-        .attr('fill', '#4b5563')
-        .text(d.internalRoute);
-    });
-  };
-
-  // Render the Bar Chart for real-time marks visualization
-  const renderBarChart = () => {
-    if (!barChartRef.current || !performanceData.length) return;
+      colorScaleFn = d3.scaleLinear<string>()
+        .domain(Array.from({ length: colorScale.length }, (_, i) => 
+          min + (max - min) * (i / (colorScale.length - 1))
+        ))
+        .range(colorScale);
+    }
     
-    const chart = d3.select(barChartRef.current);
-    const containerWidth = containerRef.current?.clientWidth || 800;
-    const chartHeight = 280;
+    // Draw header row
+    const headers = table.append('g')
+      .attr('class', 'headers');
     
-    // Set chart dimensions
-    chart.attr('width', containerWidth)
-         .attr('height', chartHeight);
-    
-    // Prepare data - use the count of students in each mark category
-    const data = performanceData.map(d => ({
-      label: d.mark.split(' ')[0], // Just use the letter grade (A, B, C, etc.)
-      fullLabel: d.mark,
-      value: d.count,
-      attempts: d.attempts
-    }));
-    
-    // Create scales
-    const xScale = d3.scaleBand()
-      .domain(data.map(d => d.label))
-      .range([60, containerWidth - 30])
-      .padding(0.3);
-    
-    // Find max value for y scale
-    const maxCount = d3.max(data, d => d.value) || 10;
-    
-    const yScale = d3.scaleLinear()
-      .domain([0, maxCount + 2]) // Add some padding
-      .range([chartHeight - 60, 30]);
-    
-    // Create axes
-    const xAxis = d3.axisBottom(xScale);
-    const yAxis = d3.axisLeft(yScale)
-      .ticks(5)
-      .tickFormat(d => `${d}`);
-    
-    // Add grid lines
-    chart.append('g')
-      .attr('class', 'grid')
-      .attr('transform', `translate(60,0)`)
-      .call(d3.axisLeft(yScale)
-        .ticks(5)
-        .tickSize(-containerWidth + 90)
-        .tickFormat(() => '')
-      )
-      .call(g => g.select('.domain').remove())
-      .call(g => g.selectAll('.tick line')
-        .attr('stroke', '#e5e7eb')
-        .attr('stroke-width', 0.5)
-      );
-    
-    // Add X axis
-    chart.append('g')
-      .attr('class', 'x-axis')
-      .attr('transform', `translate(0,${chartHeight - 60})`)
-      .call(xAxis)
-      .selectAll('text')
-      .attr('font-size', '12px');
-    
-    // Add Y axis
-    chart.append('g')
-      .attr('class', 'y-axis')
-      .attr('transform', 'translate(60,0)')
-      .call(yAxis);
-    
-    // Create color scale based on mark grades
-    const colorScale = d3.scaleOrdinal<string>()
-      .domain(data.map(d => d.label))
-      .range(['#10B981', '#34D399', '#6EE7B7', '#F59E0B', '#EF4444']);
-    
-    // Add bars with animation
-    chart.selectAll('.bar')
-      .data(data)
+    headers.selectAll('rect')
+      .data(data.headers)
       .enter()
       .append('rect')
-      .attr('class', 'bar')
-      .attr('x', d => xScale(d.label) as number)
-      .attr('width', xScale.bandwidth())
-      .attr('y', yScale(0))
-      .attr('height', 0)
-      .attr('fill', d => colorScale(d.label))
-      .attr('rx', 3)
-      .attr('ry', 3)
-      .transition()
-      .duration(800)
-      .attr('y', d => yScale(d.value))
-      .attr('height', d => chartHeight - 60 - yScale(d.value));
+      .attr('x', (_, i) => {
+        let x = 0;
+        for (let j = 0; j < i; j++) {
+          x += columnWidths[j];
+        }
+        return x;
+      })
+      .attr('y', 0)
+      .attr('width', (_, i) => columnWidths[i])
+      .attr('height', headerHeight)
+      .attr('fill', headerColor)
+      .attr('stroke', borderColor)
+      .attr('stroke-width', 1);
     
-    // Add value labels on top of bars
-    chart.selectAll('.value-label')
-      .data(data)
+    headers.selectAll('text')
+      .data(data.headers)
       .enter()
       .append('text')
-      .attr('class', 'value-label')
-      .attr('x', d => (xScale(d.label) as number) + xScale.bandwidth() / 2)
-      .attr('y', d => yScale(d.value) - 10)
-      .attr('text-anchor', 'middle')
-      .attr('font-size', '14px')
-      .attr('font-weight', 'bold')
-      .attr('fill', d => colorScale(d.label))
-      .text(d => d.value);
-    
-    // Add title
-    chart.append('text')
-      .attr('x', containerWidth / 2)
-      .attr('y', 20)
-      .attr('text-anchor', 'middle')
-      .attr('font-size', '16px')
-      .attr('font-weight', 'bold')
-      .attr('fill', '#111827')
-      .text('Student Distribution by Mark');
-  };
-  
-  // Render Pie Chart for the distribution
-  const renderPieChart = () => {
-    if (!pieChartRef.current || !performanceData.length) return;
-    
-    const chart = d3.select(pieChartRef.current);
-    const containerWidth = containerRef.current?.clientWidth || 800;
-    const chartHeight = 300;
-    const radius = Math.min(containerWidth, chartHeight) / 2 - 40;
-    
-    // Set chart dimensions
-    chart.attr('width', containerWidth)
-         .attr('height', chartHeight);
-    
-    // Prepare data
-    const data = performanceData.map(d => ({
-      name: d.mark.split(' ')[0], // Just use the letter grade (A, B, C, etc.)
-      fullName: d.mark,
-      value: d.count,
-      justification: d.justification
-    }));
-    
-    const total = data.reduce((sum, d) => sum + d.value, 0);
-    
-    // Color scale - same as in bar chart for consistency
-    const colors = d3.scaleOrdinal<string>()
-      .domain(data.map(d => d.name))
-      .range(['#10B981', '#34D399', '#6EE7B7', '#F59E0B', '#EF4444']);
-    
-    // Pie chart setup
-    const pie = d3.pie<typeof data[0]>()
-      .value(d => d.value)
-      .sort(null);
-    
-    const arc = d3.arc<d3.PieArcDatum<typeof data[0]>>()
-      .innerRadius(radius * 0.5) // Create a donut chart with a hole
-      .outerRadius(radius);
-    
-    const arcLabel = d3.arc<d3.PieArcDatum<typeof data[0]>>()
-      .innerRadius(radius * 0.75)
-      .outerRadius(radius * 0.75);
-    
-    // Create pie chart group
-    const g = chart.append('g')
-      .attr('transform', `translate(${containerWidth / 2}, ${chartHeight / 2})`);
-    
-    // Add arcs
-    const arcs = g.selectAll('.arc')
-      .data(pie(data))
-      .enter()
-      .append('g')
-      .attr('class', 'arc');
-    
-    // Add path with animation
-    arcs.append('path')
-      .attr('d', arc)
-      .attr('fill', d => colors(d.data.name))
-      .attr('stroke', 'white')
-      .attr('stroke-width', 2)
-      .transition()
-      .duration(1000)
-      .attrTween('d', function(d) {
-        const interpolate = d3.interpolate(
-          { startAngle: 0, endAngle: 0 },
-          { startAngle: d.startAngle, endAngle: d.endAngle }
-        );
-        return function(t) {
-          return arc(interpolate(t) as any);
-        };
-      });
-    
-    // Add grade labels
-    arcs.append('text')
-      .attr('transform', d => `translate(${arcLabel.centroid(d)})`)
-      .attr('text-anchor', 'middle')
-      .attr('font-size', '14px')
-      .attr('font-weight', 'bold')
-      .attr('fill', 'white')
-      .text(d => d.data.name);
-    
-    // Add percentage labels
-    arcs.append('text')
-      .attr('transform', d => {
-        const pos = arcLabel.centroid(d);
-        return `translate(${pos[0]}, ${pos[1] + 20})`;
+      .attr('x', (_, i) => {
+        let x = 0;
+        for (let j = 0; j < i; j++) {
+          x += columnWidths[j];
+        }
+        return x + columnWidths[i] / 2;
       })
+      .attr('y', headerHeight / 2)
+      .attr('dy', '.35em')
       .attr('text-anchor', 'middle')
-      .attr('font-size', '12px')
       .attr('fill', 'white')
-      .text(d => {
-        const percentage = Math.round((d.data.value / total) * 100);
-        return percentage > 0 ? `${percentage}%` : '';
-      });
+      .attr('font-weight', 'bold')
+      .text(d => d);
     
-    // Add legend
-    const legendG = chart.append('g')
-      .attr('transform', `translate(${containerWidth - 150}, 20)`);
+    // Draw data rows
+    const rows = table.append('g')
+      .attr('class', 'rows')
+      .attr('transform', `translate(0, ${headerHeight})`);
     
-    const legend = legendG.selectAll('.legend')
-      .data(data)
+    const rowGroups = rows.selectAll('g')
+      .data(data.rows)
       .enter()
       .append('g')
-      .attr('class', 'legend')
-      .attr('transform', (d, i) => `translate(0, ${i * 25})`);
+      .attr('class', 'row')
+      .attr('transform', (_, i) => `translate(0, ${i * cellHeight})`);
     
-    legend.append('rect')
-      .attr('width', 15)
-      .attr('height', 15)
-      .attr('fill', d => colors(d.name));
+    // Add row background rectangles
+    rowGroups.selectAll('rect')
+      .data((d, i) => data.headers.map(header => ({
+        header,
+        value: d[header],
+        rowIndex: i
+      })))
+      .enter()
+      .append('rect')
+      .attr('x', (d, i) => {
+        let x = 0;
+        for (let j = 0; j < i; j++) {
+          x += columnWidths[j];
+        }
+        return x;
+      })
+      .attr('y', 0)
+      .attr('width', (_, i) => columnWidths[i])
+      .attr('height', cellHeight)
+      .attr('fill', d => {
+        // If this cell is using the value key for coloring
+        if (colorScaleFn && d.header === valueKey) {
+          return colorScaleFn(Number(d.value));
+        }
+        // Alternating row colors
+        return d.rowIndex % 2 === 0 ? '#f8fafc' : '#f1f5f9';
+      })
+      .attr('stroke', borderColor)
+      .attr('stroke-width', 0.5)
+      .on('mouseover', function() {
+        d3.select(this).attr('fill', highlightColor).attr('fill-opacity', 0.3);
+      })
+      .on('mouseout', function(d) {
+        const rowIndex = (d as any).rowIndex;
+        let fillColor = rowIndex % 2 === 0 ? '#f8fafc' : '#f1f5f9';
+        
+        if (colorScaleFn && (d as any).header === valueKey) {
+          fillColor = colorScaleFn(Number((d as any).value));
+        }
+        
+        d3.select(this).attr('fill', fillColor).attr('fill-opacity', 1);
+      });
     
-    legend.append('text')
-      .attr('x', 25)
-      .attr('y', 12.5)
-      .attr('font-size', '12px')
-      .text(d => `${d.fullName}: ${d.value}`);
-    
-    // Add title
-    chart.append('text')
-      .attr('x', containerWidth / 2)
-      .attr('y', 20)
+    // Add row text
+    rowGroups.selectAll('text')
+      .data((d, i) => data.headers.map(header => ({
+        header,
+        value: d[header],
+        rowIndex: i
+      })))
+      .enter()
+      .append('text')
+      .attr('x', (d, i) => {
+        let x = 0;
+        for (let j = 0; j < i; j++) {
+          x += columnWidths[j];
+        }
+        return x + columnWidths[i] / 2;
+      })
+      .attr('y', cellHeight / 2)
+      .attr('dy', '.35em')
       .attr('text-anchor', 'middle')
-      .attr('font-size', '16px')
-      .attr('font-weight', 'bold')
-      .attr('fill', '#111827')
-      .text('Performance Distribution by Mark');
+      .attr('fill', d => {
+        // If this is the value column, maybe use white text for better contrast
+        if (colorScaleFn && d.header === valueKey && Number(d.value) > (colorScaleFn.domain()[colorScaleFn.domain().length - 2])) {
+          return 'white';
+        }
+        return textColor;
+      })
+      .text(d => String(d.value));
     
-    // Add total count in center
-    g.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '0.35em')
-      .attr('font-size', '22px')
-      .attr('font-weight', 'bold')
-      .attr('fill', '#111827')
-      .text(`${total}`);
-    
-    g.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '2.5em')
-      .attr('font-size', '12px')
-      .attr('fill', '#4b5563')
-      .text('Total Students');
-  };
-
-  return (
-    <div className={`d3-marks-table ${className}`} ref={containerRef}>
-      <h3 className="text-xl font-bold mb-4">Marks Distribution by Grade</h3>
-      <svg ref={svgRef} className="w-full border rounded-md"></svg>
+    // Add legend if using color scale
+    if (colorScaleFn && valueKey) {
+      const legendWidth = 200;
+      const legendHeight = 20;
+      const legendX = width - legendWidth - 20;
+      const legendY = tableHeight + 30;
       
-      {/* Show users for each mark category */}
-      {performanceData.length > 0 && (
-        <div className="mt-8">
-          <h3 className="text-lg font-medium mb-4">Student Results by Mark</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Mark
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Student Count
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Students
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Average Score
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {performanceData.map((mark, idx) => {
-                  // Calculate average score for this mark
-                  const totalScore = mark.attempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
-                  const avgScore = mark.attempts.length ? Math.round(totalScore / mark.attempts.length) : 0;
-                  
-                  // Get unique users from attempts
-                  const userIds = new Set(mark.attempts.map(a => a.userId));
-                  
-                  return (
-                    <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {mark.mark}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {mark.count}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {Array.from(userIds).length} unique student(s)
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {avgScore}%
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      // Create a gradient for the legend
+      const domain = colorScaleFn.domain();
+      const defs = svg.append('defs');
+      
+      const gradient = defs.append('linearGradient')
+        .attr('id', 'legend-gradient')
+        .attr('x1', '0%')
+        .attr('y1', '0%')
+        .attr('x2', '100%')
+        .attr('y2', '0%');
+      
+      colorScale.forEach((color, i) => {
+        gradient.append('stop')
+          .attr('offset', `${(i / (colorScale.length - 1)) * 100}%`)
+          .attr('stop-color', color);
+      });
+      
+      // Create legend rectangle
+      const legend = svg.append('g')
+        .attr('class', 'legend')
+        .attr('transform', `translate(${legendX}, ${legendY})`);
+      
+      legend.append('rect')
+        .attr('width', legendWidth)
+        .attr('height', legendHeight)
+        .style('fill', 'url(#legend-gradient)')
+        .attr('stroke', borderColor)
+        .attr('stroke-width', 0.5);
+      
+      // Add legend title
+      legend.append('text')
+        .attr('x', legendWidth / 2)
+        .attr('y', -5)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .attr('fill', textColor)
+        .text(`${valueKey} Value Scale`);
+      
+      // Add min and max labels
+      legend.append('text')
+        .attr('x', 0)
+        .attr('y', legendHeight + 15)
+        .attr('text-anchor', 'start')
+        .attr('font-size', '10px')
+        .attr('fill', textColor)
+        .text(Math.round(domain[0]));
+      
+      legend.append('text')
+        .attr('x', legendWidth)
+        .attr('y', legendHeight + 15)
+        .attr('text-anchor', 'end')
+        .attr('font-size', '10px')
+        .attr('fill', textColor)
+        .text(Math.round(domain[domain.length - 1]));
+    }
+    
+  }, [data, width, height, cellPadding, colorScale, headerColor, borderColor, textColor, highlightColor, valueKey]);
+  
+  return (
+    <div className="d3-table-container overflow-auto">
+      <svg ref={svgRef} className="d3-table w-full h-full"></svg>
     </div>
   );
 }
