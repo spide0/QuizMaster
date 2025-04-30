@@ -53,15 +53,24 @@ export default function HomePage() {
     queryFn: async () => {
       const res = await fetch("/api/quizzes");
       const allQuizzes = await res.json();
-      // Filter out quizzes the user has already completed
-      const completedQuizIds = new Set(
-        attempts
-          .filter(a => a.completed)
-          .map(a => a.quizId)
-      );
-      return allQuizzes
-        .filter((q: Quiz) => !completedQuizIds.has(q.id))
-        .slice(0, 3); // Limit to 3 for the dashboard
+      
+      // For admin users, we'll show quizzes they created
+      // For regular users, we'll show quizzes they can take (excluding completed ones)
+      if (user?.role === 'admin') {
+        return allQuizzes
+          .filter((q: Quiz) => q.createdBy === user.id)
+          .slice(0, 3); // Limit to 3 for the dashboard
+      } else {
+        // Filter out quizzes the user has already completed
+        const completedQuizIds = new Set(
+          attempts
+            .filter(a => a.completed)
+            .map(a => a.quizId)
+        );
+        return allQuizzes
+          .filter((q: Quiz) => !completedQuizIds.has(q.id))
+          .slice(0, 3); // Limit to 3 for the dashboard
+      }
     },
     enabled: !isLoadingAttempts,
   });
@@ -89,6 +98,9 @@ export default function HomePage() {
   const recentQuizzes = [...attempts]
     .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
     .slice(0, 5);
+    
+  // Determine if the user can attempt quizzes (only regular users, not admins)
+  const canAttemptQuizzes = user?.role !== 'admin';
   
   // Find quiz title by id
   const getQuizTitle = (quizId: number) => {
@@ -320,9 +332,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Available Quizzes Section */}
+          {/* Available Quizzes Section - different title based on role */}
           <div className="mt-8">
-            <h2 className="text-lg leading-6 font-medium text-gray-900">Available Quizzes</h2>
+            <h2 className="text-lg leading-6 font-medium text-gray-900">
+              {user?.role === 'admin' ? 'Your Created Quizzes' : 'Available Quizzes'}
+            </h2>
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {availableQuizzes.length === 0 ? (
                 <div className="col-span-3 text-center py-12 bg-white shadow sm:rounded-lg">
@@ -363,11 +377,19 @@ export default function HomePage() {
                         </div>
                       </div>
                       <div className="mt-5">
-                        <Button asChild>
-                          <Link href={`/quizzes/${quiz.id}`}>
-                            Start Quiz
-                          </Link>
-                        </Button>
+                        {canAttemptQuizzes ? (
+                          <Button asChild>
+                            <Link href={`/quizzes/${quiz.id}`}>
+                              Start Quiz
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button variant="outline" asChild>
+                            <Link href={`/quizzes/${quiz.id}`}>
+                              View Details
+                            </Link>
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
