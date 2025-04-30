@@ -1,7 +1,8 @@
 import { useParams } from "wouter";
 import { Navbar } from "@/components/navbar";
-import { QuizResults } from "@/components/quiz-results";
+import { QuizResults } from "@/components/quiz-results-updated";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Loader2 } from "lucide-react";
@@ -16,6 +17,14 @@ interface Attempt {
   completed: boolean;
 }
 
+interface Mark {
+  id: number;
+  mark: string;
+  justification: string;
+  internalRoute: string;
+  threshold: number;
+}
+
 export default function ResultsPage() {
   // Check if there's a specific attempt ID in the URL
   const { id } = useParams<{ id: string }>();
@@ -25,9 +34,23 @@ export default function ResultsPage() {
     queryKey: ["/api/user/attempts"],
     enabled: !id
   });
+  
+  // Fetch marks data
+  const { data: marks = [] } = useQuery<Mark[]>({
+    queryKey: ['/api/marks'],
+    enabled: !id
+  });
 
   // Filter to only completed attempts if we're showing all
   const completedAttempts = attempts.filter(attempt => attempt.completed);
+  
+  // Get mark for a given score
+  const getMarkForScore = (score: number | null) => {
+    if (!score || marks.length === 0) return "N/A";
+    const sortedMarks = [...marks].sort((a, b) => b.threshold - a.threshold);
+    const mark = sortedMarks.find(m => score >= m.threshold);
+    return mark ? mark.mark : sortedMarks[sortedMarks.length - 1].mark;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -64,6 +87,7 @@ export default function ResultsPage() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mark</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th scope="col" className="relative px-6 py-3">
                         <span className="sr-only">View</span>
