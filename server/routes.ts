@@ -353,8 +353,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user quiz performance data for marks analysis
   app.get("/api/user-performance", async (req, res) => {
     try {
-      const error = isAdmin(req, res);
-      if (error) return;
+      // Only require authentication, not admin status,
+      // so all users can see the performance data visualization
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
       
       // Get all completed attempts
       const allAttempts = await storage.getCompletedAttempts();
@@ -378,14 +381,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           mark: mark.mark,
           count: attemptsInRange.length,
-          attempts: attemptsInRange.map(a => ({
-            id: a.id,
-            userId: a.userId,
-            quizId: a.quizId,
-            score: a.score,
-            tabSwitches: a.tabSwitches,
-            startTime: a.startTime,
-            endTime: a.endTime
+          attempts: attemptsInRange.map(attempt => ({
+            id: attempt.id,
+            userId: attempt.userId,
+            quizId: attempt.quizId,
+            score: attempt.score,
+            tabSwitches: attempt.tabSwitches || 0,
+            startTime: attempt.startTime,
+            endTime: attempt.endTime
           }))
         };
       });

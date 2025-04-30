@@ -44,9 +44,18 @@ export function MarksDisplay() {
   const [showForm, setShowForm] = useState(false);
 
   // Fetch marks
-  const { data: marks = [], isLoading, error } = useQuery<Mark[]>({
+  const { data: marks = [], isLoading: marksLoading, error: marksError } = useQuery<Mark[]>({
     queryKey: ["/api/marks"],
   });
+  
+  // Fetch user performance data for real-time visualization
+  const { data: performanceData = [], isLoading: performanceLoading, error: performanceError } = useQuery({
+    queryKey: ["/api/user-performance"],
+  });
+  
+  // Combined loading and error states
+  const isLoading = marksLoading || performanceLoading;
+  const error = marksError || performanceError;
 
   // Create mark mutation
   const createMarkMutation = useMutation({
@@ -212,7 +221,7 @@ export function MarksDisplay() {
             </div>
           )}
 
-          <D3MarksTable marks={marks} />
+          <D3MarksTable marks={marks} performanceData={performanceData} />
         </CardContent>
       </Card>
     </div>

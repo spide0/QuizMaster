@@ -704,16 +704,13 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getCompletedAttempts(): Promise<Attempt[]> {
-    return db.select()
+    // Get all attempts that are completed
+    const completedAttempts = await db.select()
       .from(attempts)
-      .where(
-        and(
-          eq(attempts.completed, true),
-          // Only include attempts with a non-null score
-          // This is a workaround since isNotNull is not available
-          eq(attempts.score !== null, true)
-        )
-      );
+      .where(eq(attempts.completed, true));
+    
+    // Filter out the ones with null scores
+    return completedAttempts.filter(attempt => attempt.score !== null);
   }
 
   // Mark management
