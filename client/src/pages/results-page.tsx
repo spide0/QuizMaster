@@ -107,6 +107,9 @@ export default function ResultsPage() {
                           <div className="text-sm text-gray-900">{attempt.score}%</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{getMarkForScore(attempt.score)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             attempt.score && attempt.score >= 70
                               ? "bg-green-100 text-green-800"
