@@ -4,58 +4,53 @@ import { Mark } from '@shared/schema';
 
 interface D3MarksTableProps {
   marks: Mark[];
-  performanceData?: any[];
   className?: string;
 }
 
-// Performance mark data structure from API
-interface PerformanceMark {
-  mark: string;
-  count: number;
-  attempts: Array<{
-    id: number;
-    userId: number;
-    quizId: number;
-    score: number | null;
-    tabSwitches: number;
-    startTime: string;
-    endTime: string | null;
-  }>;
+// Simulated real-time marks data (for demo)
+interface RealTimeMark {
+  id: string;
+  mark: number;
+  label: string;
+  justification: string;
+  internalRoute: string;
 }
 
-export function D3MarksTable({ marks, performanceData = [], className = "" }: D3MarksTableProps) {
+export function D3MarksTable({ marks, className = "" }: D3MarksTableProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const barChartRef = useRef<SVGSVGElement>(null);
   const pieChartRef = useRef<SVGSVGElement>(null);
-  
-  // Process the performance data for visualization
-  const [chartData, setChartData] = useState<{ name: string; value: number; attempts?: any[] }[]>([]);
-  
-  // Process real performance data
-  useEffect(() => {
-    if (performanceData && performanceData.length > 0) {
-      // Use the actual performance data for visualization
-      const formattedData = performanceData.map((item: PerformanceMark) => ({
-        name: item.mark,
-        value: item.count,
-        attempts: item.attempts || []
-      }));
-      
-      setChartData(formattedData);
-    } else if (marks.length > 0) {
-      // Fallback to marks without data
-      const fallbackData = marks.map(mark => ({
-        name: mark.mark,
-        value: 0, // No data yet
-        attempts: []
-      }));
-      
-      setChartData(fallbackData);
-    }
-  }, [marks, performanceData]);
+  const [realTimeMarks, setRealTimeMarks] = useState<RealTimeMark[]>([
+    { id: "1", mark: 12, label: "Row 1", justification: "Good analysis", internalRoute: "/analysis" },
+    { id: "2", mark: 13, label: "Row 2", justification: "Excellent presentation", internalRoute: "/presentation" },
+    { id: "3", mark: 10, label: "Row 3", justification: "Lacks depth", internalRoute: "/summary" }
+  ]);
 
-  // Render table and charts when data changes
+  // Simulate real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Randomly modify one of the marks by +/-1
+      setRealTimeMarks(prevMarks => {
+        const newMarks = [...prevMarks];
+        const randomIndex = Math.floor(Math.random() * newMarks.length);
+        const change = Math.random() > 0.5 ? 1 : -1;
+        
+        // Only change if within reasonable bounds (8-15)
+        if (newMarks[randomIndex].mark + change >= 8 && newMarks[randomIndex].mark + change <= 15) {
+          newMarks[randomIndex] = {
+            ...newMarks[randomIndex],
+            mark: newMarks[randomIndex].mark + change
+          };
+        }
+        
+        return newMarks;
+      });
+    }, 5000); // Update every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (!marks.length || !svgRef.current || !containerRef.current) return;
 
@@ -73,11 +68,11 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     // Render table using D3
     renderTable();
     
-    // Render bar chart if we have chart data
-    if (chartData.length > 0) {
-      renderBarChart();
-      renderPieChart();
-    }
+    // Render bar chart
+    renderBarChart();
+    
+    // Render pie chart
+    renderPieChart();
 
     // Handle window resize
     const handleResize = () => {
@@ -92,26 +87,24 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
       }
       
       renderTable();
-      if (chartData.length > 0) {
-        renderBarChart();
-        renderPieChart();
-      }
+      renderBarChart();
+      renderPieChart();
     };
 
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [marks, chartData]);
+  }, [marks, realTimeMarks]);
 
-  // Render the Marks Table 
+  // Render the Marks Table based on the screenshot
   const renderTable = () => {
     const svg = d3.select(svgRef.current);
     const containerWidth = containerRef.current?.clientWidth || 800;
     
     // Set SVG dimensions
     svg.attr('width', containerWidth)
-       .attr('height', (marks.length + 1) * 50);
+       .attr('height', (realTimeMarks.length + 1) * 50);
     
     // Column widths
     const colWidths = [
@@ -161,7 +154,7 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     
     // Create data rows
     const rows = svg.selectAll('.data-row')
-      .data(marks)
+      .data(realTimeMarks)
       .enter()
       .append('g')
       .attr('class', 'data-row')
@@ -176,7 +169,7 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
       .attr('stroke-width', 1);
     
     // Add row data
-    rows.each(function(d) {
+    rows.each(function(d, i) {
       const row = d3.select(this);
       let xOffset = 0;
       
@@ -226,7 +219,7 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     });
   };
 
-  // Render the Bar Chart for performance data visualization
+  // Render the Bar Chart for real-time marks visualization
   const renderBarChart = () => {
     if (!barChartRef.current) return;
     
@@ -238,14 +231,20 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     chart.attr('width', containerWidth)
          .attr('height', chartHeight);
     
+    // Prepare data
+    const data = realTimeMarks.map(d => ({
+      label: d.label,
+      value: d.mark
+    }));
+    
     // Create scales
     const xScale = d3.scaleBand()
-      .domain(chartData.map(d => d.name))
+      .domain(data.map(d => d.label))
       .range([60, containerWidth - 30])
       .padding(0.3);
     
     const yScale = d3.scaleLinear()
-      .domain([0, d3.max(chartData, d => d.value) || 10])
+      .domain([0, 15]) // Fixed range for marks from 0-15
       .range([chartHeight - 60, 30]);
     
     // Create axes
@@ -285,11 +284,11 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     
     // Add bars with animation
     chart.selectAll('.bar')
-      .data(chartData)
+      .data(data)
       .enter()
       .append('rect')
       .attr('class', 'bar')
-      .attr('x', d => xScale(d.name) as number)
+      .attr('x', d => xScale(d.label) as number)
       .attr('width', xScale.bandwidth())
       .attr('y', yScale(0))
       .attr('height', 0)
@@ -303,11 +302,11 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     
     // Add value labels on top of bars
     chart.selectAll('.value-label')
-      .data(chartData)
+      .data(data)
       .enter()
       .append('text')
       .attr('class', 'value-label')
-      .attr('x', d => (xScale(d.name) as number) + xScale.bandwidth() / 2)
+      .attr('x', d => (xScale(d.label) as number) + xScale.bandwidth() / 2)
       .attr('y', d => yScale(d.value) - 10)
       .attr('text-anchor', 'middle')
       .attr('font-size', '14px')
@@ -323,12 +322,12 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
       .attr('font-size', '16px')
       .attr('font-weight', 'bold')
       .attr('fill', '#111827')
-      .text('Quiz Performance by Mark');
+      .text('Marks Visualization (Bar Chart)');
   };
   
   // Render Pie Chart for the distribution
   const renderPieChart = () => {
-    if (!pieChartRef.current || chartData.length === 0) return;
+    if (!pieChartRef.current) return;
     
     const chart = d3.select(pieChartRef.current);
     const containerWidth = containerRef.current?.clientWidth || 800;
@@ -339,36 +338,29 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     chart.attr('width', containerWidth)
          .attr('height', chartHeight);
     
-    const total = chartData.reduce((sum, d) => sum + d.value, 0);
+    // Prepare data
+    const data = realTimeMarks.map(d => ({
+      name: d.label,
+      value: d.mark
+    }));
     
-    // Only render if we have data
-    if (total === 0) {
-      chart.append('text')
-        .attr('x', containerWidth / 2)
-        .attr('y', chartHeight / 2)
-        .attr('text-anchor', 'middle')
-        .attr('font-size', '16px')
-        .attr('font-weight', 'bold')
-        .attr('fill', '#111827')
-        .text('No quiz performance data yet');
-      return;
-    }
+    const total = data.reduce((sum, d) => sum + d.value, 0);
     
     // Color scale
     const colors = d3.scaleOrdinal()
-      .domain(chartData.map(d => d.name))
-      .range(['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']);
+      .domain(data.map(d => d.name))
+      .range(['#4F46E5', '#10B981', '#F59E0B']);
     
     // Pie chart setup
-    const pie = d3.pie<any>()
-      .value((d: any) => d.value)
+    const pie = d3.pie<typeof data[0]>()
+      .value(d => d.value)
       .sort(null);
     
-    const arc = d3.arc<any>()
+    const arc = d3.arc<d3.PieArcDatum<typeof data[0]>>()
       .innerRadius(0)
       .outerRadius(radius);
     
-    const arcLabel = d3.arc<any>()
+    const arcLabel = d3.arc<d3.PieArcDatum<typeof data[0]>>()
       .innerRadius(radius * 0.6)
       .outerRadius(radius * 0.6);
     
@@ -378,7 +370,7 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     
     // Add arcs
     const arcs = g.selectAll('.arc')
-      .data(pie(chartData))
+      .data(pie(data))
       .enter()
       .append('g')
       .attr('class', 'arc');
@@ -386,36 +378,47 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     // Add path with animation
     arcs.append('path')
       .attr('d', arc)
-      .attr('fill', (d: any) => colors(d.data.name) as string)
+      .attr('fill', d => colors(d.data.name) as string)
       .attr('stroke', 'white')
-      .attr('stroke-width', 2);
+      .attr('stroke-width', 2)
+      .transition()
+      .duration(1000)
+      .attrTween('d', function(d) {
+        const interpolate = d3.interpolate(
+          { startAngle: 0, endAngle: 0 },
+          { startAngle: d.startAngle, endAngle: d.endAngle }
+        );
+        return function(t) {
+          return arc(interpolate(t) as any);
+        };
+      });
     
     // Add labels
     arcs.append('text')
-      .attr('transform', (d: any) => `translate(${arcLabel.centroid(d)})`)
+      .attr('transform', d => `translate(${arcLabel.centroid(d)})`)
       .attr('text-anchor', 'middle')
       .attr('font-size', '14px')
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
-      .text((d: any) => `${d.data.value}`);
+      .text(d => `${d.data.value}`);
     
     // Add percentage labels
     arcs.append('text')
-      .attr('transform', (d: any) => {
+      .attr('transform', d => {
         const pos = arcLabel.centroid(d);
         return `translate(${pos[0]}, ${pos[1] + 20})`;
       })
       .attr('text-anchor', 'middle')
       .attr('font-size', '12px')
       .attr('fill', 'white')
-      .text((d: any) => `${Math.round((d.data.value / total) * 100)}%`);
+      .text(d => `${Math.round((d.data.value / total) * 100)}%`);
     
     // Add legend
     const legendG = chart.append('g')
       .attr('transform', `translate(${containerWidth - 120}, 30)`);
     
     const legend = legendG.selectAll('.legend')
-      .data(chartData)
+      .data(data)
       .enter()
       .append('g')
       .attr('class', 'legend')
@@ -424,13 +427,13 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
     legend.append('rect')
       .attr('width', 15)
       .attr('height', 15)
-      .attr('fill', (d: any) => colors(d.name) as string);
+      .attr('fill', d => colors(d.name) as string);
     
     legend.append('text')
       .attr('x', 25)
       .attr('y', 12.5)
       .attr('font-size', '12px')
-      .text((d: any) => `${d.name}: ${d.value}`);
+      .text(d => `${d.name}: ${d.value}`);
     
     // Add title
     chart.append('text')
@@ -440,12 +443,12 @@ export function D3MarksTable({ marks, performanceData = [], className = "" }: D3
       .attr('font-size', '16px')
       .attr('font-weight', 'bold')
       .attr('fill', '#111827')
-      .text('Marks Distribution');
+      .text('Marks Distribution (Pie Chart)');
   };
 
   return (
     <div className={`d3-marks-table ${className}`} ref={containerRef}>
-      <h3 className="text-xl font-bold mb-4">Marks Analysis with Real-time Data</h3>
+      <h3 className="text-xl font-bold mb-4">Marks Table (D3.js)</h3>
       <svg ref={svgRef} className="w-full border rounded-md"></svg>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
