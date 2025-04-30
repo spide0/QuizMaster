@@ -231,6 +231,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update attempt" });
     }
   });
+  
+  // Dedicated endpoint for tab switching to improve real-time monitoring
+  app.patch("/api/attempts/:id/tab-switch", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const attemptId = parseInt(req.params.id);
+      
+      // Check if the attempt exists and belongs to the user
+      const attempt = await storage.getAttemptById(attemptId);
+      if (!attempt) {
+        return res.status(404).json({ message: "Attempt not found" });
+      }
+      
+      if (attempt.userId !== req.user.id) {
+        return res.status(403).json({ message: "You are not authorized to update this attempt" });
+      }
+      
+      // Increment tab switches
+      const updatedAttempt = await storage.incrementTabSwitches(attemptId);
+      
+      // If tab switches exceed a threshold, you might want to flag this attempt
+      const TAB_SWITCH_THRESHOLD = 5;
+      if (updatedAttempt.tabSwitches > TAB_SWITCH_THRESHOLD) {
+        console.log(`ALERT: User ${req.user.id} has exceeded tab switch threshold (${updatedAttempt.tabSwitches}) for attempt ${attemptId}`);
+        // You could add additional logic here for flagging in the database
+      }
+      
+      res.json(updatedAttempt);
+    } catch (error) {
+      console.error("Tab switch recording error:", error);
+      res.status(500).json({ message: "Failed to record tab switch" });
+    }
+  });
 
   // Get user's quiz attempts
   app.get("/api/user/attempts", async (req, res) => {
