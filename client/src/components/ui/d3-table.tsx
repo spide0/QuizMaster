@@ -19,6 +19,13 @@ interface D3TableProps {
   valueKey?: string; // Key to use for color scaling
 }
 
+// Define types for d3 element data
+interface CellData {
+  header: string;
+  value: string | number;
+  rowIndex: number;
+}
+
 export function D3Table({
   data,
   width = 800,
@@ -36,10 +43,14 @@ export function D3Table({
   useEffect(() => {
     if (!svgRef.current || !data || !data.rows || data.rows.length === 0) return;
     
-    // Clear any existing SVG content
-    d3.select(svgRef.current).selectAll('*').remove();
+    // Import d3 modules dynamically
+    const select = d3.select;
+    const scaleLinear = d3.scaleLinear;
     
-    const svg = d3.select(svgRef.current);
+    // Clear any existing SVG content
+    select(svgRef.current).selectAll('*').remove();
+    
+    const svg = select(svgRef.current);
     
     // Calculate cell dimensions
     const cellHeight = 40;
@@ -99,7 +110,7 @@ export function D3Table({
       const min = Math.min(...values);
       const max = Math.max(...values);
       
-      colorScaleFn = d3.scaleLinear<string>()
+      colorScaleFn = scaleLinear<string>()
         .domain(Array.from({ length: colorScale.length }, (_, i) => 
           min + (max - min) * (i / (colorScale.length - 1))
         ))
@@ -114,7 +125,7 @@ export function D3Table({
       .data(data.headers)
       .enter()
       .append('rect')
-      .attr('x', (_, i) => {
+      .attr('x', (_: string, i: number) => {
         let x = 0;
         for (let j = 0; j < i; j++) {
           x += columnWidths[j];
@@ -122,7 +133,7 @@ export function D3Table({
         return x;
       })
       .attr('y', 0)
-      .attr('width', (_, i) => columnWidths[i])
+      .attr('width', (_: string, i: number) => columnWidths[i])
       .attr('height', headerHeight)
       .attr('fill', headerColor)
       .attr('stroke', borderColor)
@@ -132,7 +143,7 @@ export function D3Table({
       .data(data.headers)
       .enter()
       .append('text')
-      .attr('x', (_, i) => {
+      .attr('x', (_: string, i: number) => {
         let x = 0;
         for (let j = 0; j < i; j++) {
           x += columnWidths[j];
@@ -144,7 +155,7 @@ export function D3Table({
       .attr('text-anchor', 'middle')
       .attr('fill', 'white')
       .attr('font-weight', 'bold')
-      .text(d => d);
+      .text((d: string) => d);
     
     // Draw data rows
     const rows = table.append('g')
@@ -156,18 +167,18 @@ export function D3Table({
       .enter()
       .append('g')
       .attr('class', 'row')
-      .attr('transform', (_, i) => `translate(0, ${i * cellHeight})`);
+      .attr('transform', (_: any, i: number) => `translate(0, ${i * cellHeight})`);
     
     // Add row background rectangles
     rowGroups.selectAll('rect')
-      .data((d, i) => data.headers.map(header => ({
+      .data((d: Record<string, string | number>, i: number) => data.headers.map(header => ({
         header,
         value: d[header],
         rowIndex: i
       })))
       .enter()
       .append('rect')
-      .attr('x', (d, i) => {
+      .attr('x', (d: CellData, i: number) => {
         let x = 0;
         for (let j = 0; j < i; j++) {
           x += columnWidths[j];
@@ -175,9 +186,9 @@ export function D3Table({
         return x;
       })
       .attr('y', 0)
-      .attr('width', (_, i) => columnWidths[i])
+      .attr('width', (_: CellData, i: number) => columnWidths[i])
       .attr('height', cellHeight)
-      .attr('fill', d => {
+      .attr('fill', (d: CellData) => {
         // If this cell is using the value key for coloring
         if (colorScaleFn && d.header === valueKey) {
           return colorScaleFn(Number(d.value));
@@ -188,29 +199,29 @@ export function D3Table({
       .attr('stroke', borderColor)
       .attr('stroke-width', 0.5)
       .on('mouseover', function() {
-        d3.select(this).attr('fill', highlightColor).attr('fill-opacity', 0.3);
+        select(this).attr('fill', highlightColor).attr('fill-opacity', 0.3);
       })
-      .on('mouseout', function(d) {
-        const rowIndex = (d as any).rowIndex;
+      .on('mouseout', function(event, d: CellData) {
+        const rowIndex = d.rowIndex;
         let fillColor = rowIndex % 2 === 0 ? '#f8fafc' : '#f1f5f9';
         
-        if (colorScaleFn && (d as any).header === valueKey) {
-          fillColor = colorScaleFn(Number((d as any).value));
+        if (colorScaleFn && d.header === valueKey) {
+          fillColor = colorScaleFn(Number(d.value));
         }
         
-        d3.select(this).attr('fill', fillColor).attr('fill-opacity', 1);
+        select(this).attr('fill', fillColor).attr('fill-opacity', 1);
       });
     
     // Add row text
     rowGroups.selectAll('text')
-      .data((d, i) => data.headers.map(header => ({
+      .data((d: Record<string, string | number>, i: number) => data.headers.map(header => ({
         header,
         value: d[header],
         rowIndex: i
       })))
       .enter()
       .append('text')
-      .attr('x', (d, i) => {
+      .attr('x', (d: CellData, i: number) => {
         let x = 0;
         for (let j = 0; j < i; j++) {
           x += columnWidths[j];
@@ -220,14 +231,14 @@ export function D3Table({
       .attr('y', cellHeight / 2)
       .attr('dy', '.35em')
       .attr('text-anchor', 'middle')
-      .attr('fill', d => {
+      .attr('fill', (d: CellData) => {
         // If this is the value column, maybe use white text for better contrast
         if (colorScaleFn && d.header === valueKey && Number(d.value) > (colorScaleFn.domain()[colorScaleFn.domain().length - 2])) {
           return 'white';
         }
         return textColor;
       })
-      .text(d => String(d.value));
+      .text((d: CellData) => String(d.value));
     
     // Add legend if using color scale
     if (colorScaleFn && valueKey) {
