@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { 
   Select, 
   SelectContent, 
@@ -8,11 +9,15 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { QuizCard } from "@/components/quiz-card";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Quiz } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
+import { Link } from "wouter";
 
 export function QuizList() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [filteredQuizzes, setFilteredQuizzes] = useState<Quiz[]>([]);
@@ -107,7 +112,11 @@ export function QuizList() {
         <div className="px-4 py-5 sm:px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-lg leading-6 font-medium text-gray-900">Available Quizzes</h2>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">Browse and take quizzes.</p>
+            <p className="mt-1 max-w-2xl text-sm text-gray-500">
+              {isAdmin 
+                ? "Browse, take, or create new quizzes."
+                : "Browse and take quizzes created by administrators."}
+            </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
@@ -136,13 +145,35 @@ export function QuizList() {
                 ))}
               </SelectContent>
             </Select>
+            
+            {/* Only show create quiz button for admin users */}
+            {isAdmin && (
+              <Link href="/quizzes/create">
+                <Button className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Quiz
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>
 
       {filteredQuizzes.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">No quizzes found matching your criteria</p>
+          {isAdmin ? (
+            <>
+              <p className="text-gray-500 mb-4">No quizzes found matching your criteria</p>
+              <Link href="/quizzes/create">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Your First Quiz
+                </Button>
+              </Link>
+            </>
+          ) : (
+            <p className="text-gray-500">No quizzes available yet. Please check back later.</p>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -349,6 +349,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch marks" });
     }
   });
+  
+  // Get user quiz performance data for marks analysis
+  app.get("/api/user-performance", async (req, res) => {
+    try {
+      const error = isAdmin(req, res);
+      if (error) return;
+      
+      // Get all completed attempts
+      const allAttempts = await storage.getCompletedAttempts();
+      
+      // Get marks thresholds
+      const marks = await storage.getAllMarks();
+      
+      // Count quiz scores by mark categories
+      const performanceData = marks.map(mark => {
+        // Find all attempts that fall within this mark's threshold
+        const minThreshold = mark.threshold;
+        const maxThreshold = marks.find(m => m.threshold > mark.threshold && m.threshold < 100)?.threshold || 101;
+        
+        // Count attempts with scores in this range
+        const attemptsInRange = allAttempts.filter(attempt => 
+          attempt.score !== null && 
+          attempt.score >= minThreshold && 
+          attempt.score < maxThreshold
+        );
+        
+        return {
+          mark: mark.mark,
+          count: attemptsInRange.length,
+          attempts: attemptsInRange.map(a => ({
+            id: a.id,
+            userId: a.userId,
+            quizId: a.quizId,
+            score: a.score,
+            tabSwitches: a.tabSwitches,
+            startTime: a.startTime,
+            endTime: a.endTime
+          }))
+        };
+      });
+      
+      res.json(performanceData);
+    } catch (error) {
+      console.error("Error fetching user performance data:", error);
+      res.status(500).json({ message: "Failed to fetch user performance data" });
+    }
+  });
 
   // Create a new mark (admin only)
   app.post("/api/marks", async (req, res) => {

@@ -19,14 +19,25 @@ export function useAntiCheat({
   onLeave,
   enableAutoSubmit = true,
   submitQuiz,
-  maxTabSwitches = 5
+  maxTabSwitches = 3
 }: AntiCheatOptions) {
   // Track tab switches
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  const [forceSubmitRequired, setForceSubmitRequired] = useState(false);
+  const submittingRef = useRef(false);
   
   // Use WebSocket to report tab switches to server
   const { reportTabSwitch } = useQuizMonitoring();
+  
+  // Handle force submission
+  const handleForceSubmit = () => {
+    if (submittingRef.current) return; // Prevent duplicate submissions
+    
+    submittingRef.current = true;
+    toast.error("Quiz forcefully submitted due to excessive tab switching.");
+    submitQuiz();
+  };
   
   // Increment tab switch count on server
   const incrementTabSwitches = async () => {
@@ -57,18 +68,19 @@ export function useAntiCheat({
           onTabSwitch(newCount);
         }
         
+        // Check if we need to force submit
+        const exceedsThreshold = newCount >= maxTabSwitches;
+        
+        if (exceedsThreshold) {
+          setForceSubmitRequired(true);
+        }
+        
         // Show warning popup when visibility returns
         setTimeout(() => {
           if (document.visibilityState === 'visible') {
             setShowWarning(true);
           }
         }, 100);
-        
-        // Auto-submit after max tab switches
-        if (newCount >= maxTabSwitches && enableAutoSubmit) {
-          toast.error(`Maximum tab switches (${maxTabSwitches}) reached. Your quiz is being submitted automatically.`);
-          submitQuiz();
-        }
       }
     };
     
@@ -107,12 +119,27 @@ export function useAntiCheat({
     };
   }, [attemptId, enableAutoSubmit, submitQuiz, tabSwitchCount, maxTabSwitches]);
   
+  // Force submit if required and display popup is closed
+  useEffect(() => {
+    if (forceSubmitRequired && !showWarning && enableAutoSubmit && !submittingRef.current) {
+      handleForceSubmit();
+    }
+  }, [forceSubmitRequired, showWarning, enableAutoSubmit]);
+  
   // Render the TabWarning component along with the state and handlers
   const tabWarningComponent = (
     <TabWarning 
       isVisible={showWarning} 
-      onClose={() => setShowWarning(false)} 
+      onClose={() => {
+        setShowWarning(false);
+        // If we're closing the warning dialog and force submit is required, handle it
+        if (forceSubmitRequired && enableAutoSubmit) {
+          handleForceSubmit();
+        }
+      }} 
       switchCount={tabSwitchCount}
+      threshold={maxTabSwitches}
+      onForceSubmit={handleForceSubmit}
     />
   );
   
@@ -120,6 +147,7 @@ export function useAntiCheat({
     tabSwitchCount,
     tabWarningComponent,
     showWarning,
-    setShowWarning
+    setShowWarning,
+    forceSubmitRequired
   };
 }
