@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useQuizMonitoring } from './socket';
+import { TabWarning } from '@/components/ui/tab-warning';
+import { apiRequest } from '@/lib/queryClient';
 
 interface AntiCheatOptions {
   attemptId: number;
@@ -8,6 +10,7 @@ interface AntiCheatOptions {
   onLeave?: () => void;
   enableAutoSubmit?: boolean;
   submitQuiz: () => void;
+  maxTabSwitches?: number;
 }
 
 export function useAntiCheat({
@@ -15,30 +18,57 @@ export function useAntiCheat({
   onTabSwitch,
   onLeave,
   enableAutoSubmit = true,
-  submitQuiz
+  submitQuiz,
+  maxTabSwitches = 5
 }: AntiCheatOptions) {
   // Track tab switches
-  const tabSwitchCountRef = useRef(0);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [showWarning, setShowWarning] = useState(false);
   
   // Use WebSocket to report tab switches to server
   const { reportTabSwitch } = useQuizMonitoring();
+  
+  // Increment tab switch count on server
+  const incrementTabSwitches = async () => {
+    if (attemptId) {
+      try {
+        await apiRequest("PATCH", `/api/attempts/${attemptId}/tab-switch`, {});
+      } catch (error) {
+        console.error("Failed to report tab switch:", error);
+      }
+    }
+  };
   
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         // User switched tabs or minimized window
-        tabSwitchCountRef.current += 1;
+        const newCount = tabSwitchCount + 1;
+        setTabSwitchCount(newCount);
         
-        // Report to server
+        // Report to server via WebSocket
         reportTabSwitch(attemptId);
+        
+        // Also increment the counter in the database
+        incrementTabSwitches();
         
         // Notify via callback
         if (onTabSwitch) {
-          onTabSwitch(tabSwitchCountRef.current);
+          onTabSwitch(newCount);
         }
         
-        // Show warning
-        toast.warning('Tab switch detected! This activity is recorded.');
+        // Show warning popup when visibility returns
+        setTimeout(() => {
+          if (document.visibilityState === 'visible') {
+            setShowWarning(true);
+          }
+        }, 100);
+        
+        // Auto-submit after max tab switches
+        if (newCount >= maxTabSwitches && enableAutoSubmit) {
+          toast.error(`Maximum tab switches (${maxTabSwitches}) reached. Your quiz is being submitted automatically.`);
+          submitQuiz();
+        }
       }
     };
     
@@ -75,9 +105,21 @@ export function useAntiCheat({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('unload', handleUnload);
     };
-  }, [attemptId, enableAutoSubmit, submitQuiz]);
+  }, [attemptId, enableAutoSubmit, submitQuiz, tabSwitchCount, maxTabSwitches]);
+  
+  // Render the TabWarning component along with the state and handlers
+  const tabWarningComponent = (
+    <TabWarning 
+      isVisible={showWarning} 
+      onClose={() => setShowWarning(false)} 
+      switchCount={tabSwitchCount}
+    />
+  );
   
   return {
-    tabSwitchCount: tabSwitchCountRef.current
+    tabSwitchCount,
+    tabWarningComponent,
+    showWarning,
+    setShowWarning
   };
 }

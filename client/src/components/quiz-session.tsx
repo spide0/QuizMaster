@@ -125,7 +125,7 @@ export function QuizSession() {
   const { updateQuizStatus } = useQuizMonitoring();
 
   // Anti-cheat measures
-  const { tabSwitchCount } = useAntiCheat({
+  const { tabSwitchCount, tabWarningComponent } = useAntiCheat({
     attemptId: attempt?.id || 0,
     submitQuiz: () => {
       if (attempt?.id) {
@@ -136,6 +136,7 @@ export function QuizSession() {
       toast.warning(`Tab switch detected (${count})! This activity is recorded.`);
     },
     enableAutoSubmit: true,
+    maxTabSwitches: 5,
   });
 
   // Initialize answers from attempt
@@ -267,6 +268,9 @@ export function QuizSession() {
 
   return (
     <div className="bg-white shadow sm:rounded-lg overflow-hidden">
+      {/* Tab Warning Popup */}
+      {tabWarningComponent}
+      
       <div className="px-4 py-5 sm:px-6 bg-primary text-white">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">{quiz.title}</h2>
@@ -353,7 +357,7 @@ export function QuizSession() {
           
           <AlertDialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
             <AlertDialogTrigger asChild>
-              <Button type="button" variant="success">
+              <Button type="button" variant="default" className="bg-green-600 hover:bg-green-700 text-white">
                 Submit Quiz
               </Button>
             </AlertDialogTrigger>
