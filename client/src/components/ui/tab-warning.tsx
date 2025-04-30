@@ -67,53 +67,27 @@ export function TabWarning({
           </div>
           <div className="ml-4 flex-1">
             <h3 className="text-lg font-medium text-gray-900">
-              {exceededThreshold ? 'Warning: Excessive Tab Switching!' : 'Tab Switching Detected!'}
+              Quiz Cancelled: Tab Switching Detected!
             </h3>
             <p className="mt-2 text-sm text-gray-500">
-              {exceededThreshold ? (
-                <>
-                  <span className="font-semibold text-red-500">You have exceeded the maximum allowed tab switches.</span>
-                  <br /><br />
-                  Your quiz will be forcefully submitted in {countdown} seconds to maintain academic integrity.
-                  <br /><br />
-                  Current tab switches: <span className="font-semibold text-red-500">{switchCount}/{threshold}</span>
-                </>
-              ) : (
-                <>
-                  We've detected that you switched tabs or windows. This may be considered cheating.
-                  <br /><br />
-                  <span className="font-semibold">Tab switches: {switchCount}/{threshold}</span>
-                  <br />
-                  {threshold - switchCount} more tab switches will result in automatic quiz submission.
-                </>
-              )}
+              <span className="font-semibold text-red-500">Tab switching is not allowed during this quiz.</span>
+              <br /><br />
+              Your quiz has been cancelled and will be submitted in {countdown} seconds to maintain academic integrity.
+              <br /><br />
+              This is an automatic measure to prevent cheating.
             </p>
             <div className="mt-4 flex justify-between items-center">
               <span className="text-sm text-gray-500">
-                {exceededThreshold 
-                  ? <span className="text-red-500 font-medium">Submitting in {countdown} seconds...</span>
-                  : `Closing in ${countdown} seconds...`
-                }
+                <span className="text-red-500 font-medium">Submitting in {countdown} seconds...</span>
               </span>
               
-              {exceededThreshold ? (
-                <Button 
-                  variant="destructive" 
-                  onClick={onForceSubmit}
-                  className="inline-flex items-center"
-                >
-                  Submit Now
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={onClose}
-                  className="inline-flex items-center"
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Close
-                </Button>
-              )}
+              <Button 
+                variant="destructive" 
+                onClick={onForceSubmit}
+                className="inline-flex items-center"
+              >
+                Submit & Exit Now
+              </Button>
             </div>
           </div>
         </div>

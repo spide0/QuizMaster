@@ -35,7 +35,9 @@ export function useAntiCheat({
     if (submittingRef.current) return; // Prevent duplicate submissions
     
     submittingRef.current = true;
-    toast.error("Quiz forcefully submitted due to excessive tab switching.");
+    toast.error("Quiz cancelled and submitted due to tab switching. Tab switching is not allowed during quizzes.", { 
+      autoClose: 8000 // Longer display time for this important message
+    });
     submitQuiz();
   };
   
@@ -68,12 +70,8 @@ export function useAntiCheat({
           onTabSwitch(newCount);
         }
         
-        // Check if we need to force submit
-        const exceedsThreshold = newCount >= maxTabSwitches;
-        
-        if (exceedsThreshold) {
-          setForceSubmitRequired(true);
-        }
+        // Immediately set force submit on first tab switch
+        setForceSubmitRequired(true);
         
         // Show warning popup when visibility returns
         setTimeout(() => {
