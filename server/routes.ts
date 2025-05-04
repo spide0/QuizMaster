@@ -101,6 +101,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Ensure superuser exists
   await createSuperuser();
   
+  // Initialize default categories
+  await storage.initializeDefaultCategories();
+  console.log("Categories initialized");
+  
   // Initialize default project info
   const projectInfo = {
     name: "QuizMaster Platform",
