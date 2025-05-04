@@ -47,156 +47,106 @@ export function MarksDisplay() {
     queryKey: ["/api/user-performance"],
   });
   
-  // Create D3.js table
+  // Create D3.js table - rebuild with simpler approach
   useEffect(() => {
-    if (tableRef.current && marks.length > 0 && !isLoadingMarks) {
+    if (tableRef.current && !isLoadingMarks) {
       // Clear previous content
       d3.select(tableRef.current).selectAll("*").remove();
       
-      const width = 800;
+      const containerWidth = tableRef.current.clientWidth || 800;
+      const width = Math.min(containerWidth, 1000);
       const height = 500;
-      const margin = { top: 30, right: 30, bottom: 30, left: 30 };
       
-      // Create SVG
-      const svg = d3.select(tableRef.current)
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height)
-        .attr("viewBox", `0 0 ${width} ${height}`)
-        .attr("preserveAspectRatio", "xMidYMid meet");
+      // Create table element directly
+      const table = d3.select(tableRef.current)
+        .append("table")
+        .attr("class", "min-w-full divide-y divide-gray-200 border-collapse")
+        .style("border-collapse", "collapse")
+        .style("width", "100%");
       
-      // Title
-      svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", margin.top)
-        .attr("text-anchor", "middle")
-        .style("font-size", "20px")
-        .style("font-weight", "bold")
-        .style("fill", "#1e293b")
+      // Add table caption
+      table.append("caption")
+        .attr("class", "text-lg font-semibold py-2 text-center bg-blue-50")
         .text("QuizMaster Marking Scheme (out of 15)");
       
-      // Table container
-      const table = svg.append("g")
-        .attr("transform", `translate(${margin.left}, ${margin.top + 40})`);
+      // Create table header
+      const thead = table.append("thead")
+        .attr("class", "bg-blue-600");
       
-      // Define table dimensions
-      const tableWidth = width - margin.left - margin.right;
-      const columnCount = 3;
-      const columnWidth = tableWidth / columnCount;
-      const rowHeight = 60;
-      const headerHeight = 40;
+      const headerRow = thead.append("tr");
       
-      // Table headers
+      // Add header cells
       const headers = ["Mark (out of 15)", "Justification for Marking", "Internal Routes"];
       
-      // Header cells
-      table.selectAll(".header")
-        .data(headers)
-        .enter()
-        .append("rect")
-        .attr("x", (d, i) => i * columnWidth)
-        .attr("y", 0)
-        .attr("width", columnWidth)
-        .attr("height", headerHeight)
-        .attr("fill", "#3b82f6")
-        .attr("stroke", "#cbd5e1")
-        .attr("stroke-width", 1);
-      
-      // Header text
-      table.selectAll(".header-text")
-        .data(headers)
-        .enter()
-        .append("text")
-        .attr("x", (d, i) => i * columnWidth + columnWidth / 2)
-        .attr("y", headerHeight / 2)
-        .attr("text-anchor", "middle")
-        .attr("dominant-baseline", "middle")
-        .style("font-weight", "bold")
-        .style("fill", "white")
-        .text(d => d);
-      
-      // Data rows
-      marks.forEach((mark, rowIndex) => {
-        // Row cells
-        table.append("rect")
-          .attr("x", 0)
-          .attr("y", headerHeight + rowIndex * rowHeight)
-          .attr("width", columnWidth)
-          .attr("height", rowHeight)
-          .attr("fill", rowIndex % 2 === 0 ? "#f8fafc" : "#f1f5f9")
-          .attr("stroke", "#cbd5e1")
-          .attr("stroke-width", 1);
-        
-        table.append("rect")
-          .attr("x", columnWidth)
-          .attr("y", headerHeight + rowIndex * rowHeight)
-          .attr("width", columnWidth)
-          .attr("height", rowHeight)
-          .attr("fill", rowIndex % 2 === 0 ? "#f8fafc" : "#f1f5f9")
-          .attr("stroke", "#cbd5e1")
-          .attr("stroke-width", 1);
-        
-        table.append("rect")
-          .attr("x", columnWidth * 2)
-          .attr("y", headerHeight + rowIndex * rowHeight)
-          .attr("width", columnWidth)
-          .attr("height", rowHeight)
-          .attr("fill", rowIndex % 2 === 0 ? "#f8fafc" : "#f1f5f9")
-          .attr("stroke", "#cbd5e1")
-          .attr("stroke-width", 1);
-        
-        // Mark value
-        table.append("text")
-          .attr("x", columnWidth / 2)
-          .attr("y", headerHeight + rowIndex * rowHeight + rowHeight / 2)
-          .attr("text-anchor", "middle")
-          .attr("dominant-baseline", "middle")
+      headers.forEach(header => {
+        headerRow.append("th")
+          .attr("class", "px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider")
+          .style("background-color", "#2563eb")
+          .style("color", "white")
+          .style("padding", "12px")
           .style("font-weight", "bold")
-          .style("fill", "#334155")
-          .text(mark.mark);
-        
-        // Justification text with word wrap
-        const justificationText = table.append("text")
-          .attr("x", columnWidth + 10)
-          .attr("y", headerHeight + rowIndex * rowHeight + 20)
-          .attr("text-anchor", "start")
-          .attr("dominant-baseline", "middle")
-          .style("fill", "#334155")
-          .style("font-size", "14px");
-        
-        const justificationWords = mark.justification.split(/\s+/);
-        let justificationLine = "";
-        let justificationLineNumber = 0;
-        
-        justificationWords.forEach(word => {
-          const testLine = justificationLine + (justificationLine ? " " : "") + word;
-          if (testLine.length * 6 > columnWidth - 20) {
-            justificationText.append("tspan")
-              .attr("x", columnWidth + 10)
-              .attr("dy", justificationLineNumber === 0 ? 0 : 20)
-              .text(justificationLine);
-            justificationLine = word;
-            justificationLineNumber++;
-          } else {
-            justificationLine = testLine;
-          }
-        });
-        
-        // Add the last line
-        justificationText.append("tspan")
-          .attr("x", columnWidth + 10)
-          .attr("dy", justificationLineNumber === 0 ? 0 : 20)
-          .text(justificationLine);
-        
-        // Route text
-        table.append("text")
-          .attr("x", columnWidth * 2 + 10)
-          .attr("y", headerHeight + rowIndex * rowHeight + rowHeight / 2)
-          .attr("text-anchor", "start")
-          .attr("dominant-baseline", "middle")
-          .style("fill", "#334155")
-          .text(mark.internalRoute);
+          .style("border", "1px solid #ddd")
+          .text(header);
       });
+      
+      // Create table body
+      const tbody = table.append("tbody")
+        .attr("class", "bg-white divide-y divide-gray-200");
+      
+      if (marks.length === 0) {
+        // Show message if no marks
+        const emptyRow = tbody.append("tr");
+        emptyRow.append("td")
+          .attr("colspan", "3")
+          .attr("class", "px-6 py-4 text-center text-gray-500")
+          .style("padding", "12px")
+          .style("text-align", "center")
+          .style("border", "1px solid #ddd")
+          .text("No marks data available");
+      } else {
+        // Add data rows
+        marks.forEach((mark, index) => {
+          const row = tbody.append("tr")
+            .attr("class", index % 2 === 0 ? "bg-white" : "bg-gray-50");
+          
+          // Mark cell
+          row.append("td")
+            .attr("class", "px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900")
+            .style("padding", "12px")
+            .style("border", "1px solid #ddd")
+            .style("font-weight", "bold")
+            .style("text-align", "center")
+            .text(mark.mark);
+          
+          // Justification cell
+          row.append("td")
+            .attr("class", "px-6 py-4 text-sm text-gray-700")
+            .style("padding", "12px")
+            .style("border", "1px solid #ddd")
+            .text(mark.justification);
+          
+          // Internal route cell
+          row.append("td")
+            .attr("class", "px-6 py-4 whitespace-nowrap text-sm text-blue-600")
+            .style("padding", "12px")
+            .style("border", "1px solid #ddd")
+            .append("a")
+            .attr("href", mark.internalRoute)
+            .style("color", "#2563eb")
+            .style("text-decoration", "underline")
+            .text(mark.internalRoute);
+        });
+      }
+      
+      // Add D3 features - colorize mark cells based on threshold
+      tbody.selectAll("tr")
+        .selectAll("td:first-child")
+        .style("background-color", (d, i) => {
+          const threshold = marks[i]?.threshold || 0;
+          if (threshold >= 80) return "#dcfce7"; // Green for high
+          if (threshold >= 60) return "#fef3c7"; // Yellow for medium
+          return "#fee2e2"; // Red for low
+        });
     }
   }, [marks, isLoadingMarks]);
   
