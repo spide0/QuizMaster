@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
+import { setupAuth, hashPassword } from "./auth";
 import { setupWebSocketServer } from "./socket";
 import { storage } from "./storage";
 import { db } from "./db";
@@ -62,20 +62,12 @@ async function createSuperuser() {
     // Check if superuser already exists
     const existingSuperuser = await storage.getUserByUsername("root");
     
+    // Delete existing superuser to recreate with properly hashed password
     if (existingSuperuser) {
-      // Update to ensure superuser role
-      if (existingSuperuser.role !== "superuser") {
-        await db.update(users)
-          .set({ role: "superuser" })
-          .where(eq(users.id, existingSuperuser.id))
-          .execute();
-      }
-      console.log("Superuser verified");
-      return;
+      // First delete the existing user
+      await storage.deleteUser(existingSuperuser.id);
+      console.log("Deleted existing superuser to recreate with proper password hash");
     }
-    
-    // Import the hashPassword function from auth
-    const { hashPassword } = require('./auth');
     
     // Hash the password before storage
     const hashedPassword = await hashPassword("T9x!rV@5mL#8wQz&Kd3");
@@ -90,7 +82,7 @@ async function createSuperuser() {
     };
     
     await storage.createUser(superuserData);
-    console.log("Superuser created successfully");
+    console.log("Superuser created successfully with properly hashed password");
   } catch (error) {
     console.error("Error creating superuser:", error);
   }
