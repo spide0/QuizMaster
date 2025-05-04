@@ -716,6 +716,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Superuser - get all available routes endpoint
+  app.get("/api/all-routes", async (req, res) => {
+    try {
+      // Verify API key
+      const apiKeyError = validateApiKey(req, res);
+      if (apiKeyError) return;
+      
+      // Only allow authenticated superusers to access this endpoint
+      if (req.isAuthenticated()) {
+        if (req.user?.role !== 'superuser') {
+          return res.status(403).json({ message: "Only superusers can access this endpoint" });
+        }
+      } else {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // List of all routes available in the application
+      const routes = [
+        {
+          path: "/",
+          name: "Home Dashboard",
+          description: "Main application dashboard with overview statistics",
+          restricted: false
+        },
+        {
+          path: "/profile",
+          name: "User Profile",
+          description: "User profile management and settings",
+          restricted: false
+        },
+        {
+          path: "/quizzes",
+          name: "Quiz List",
+          description: "Browse all available quizzes",
+          restricted: false
+        },
+        {
+          path: "/quiz/create",
+          name: "Create Quiz",
+          description: "Create a new quiz (Admin only)",
+          restricted: true
+        },
+        {
+          path: "/quiz/session",
+          name: "Quiz Session",
+          description: "Take a quiz with anti-cheating measures",
+          restricted: false
+        },
+        {
+          path: "/results",
+          name: "Quiz Results",
+          description: "View quiz results and performance",
+          restricted: false
+        },
+        {
+          path: "/monitor",
+          name: "Real-time Monitoring",
+          description: "Monitor active quiz sessions (Admin only)",
+          restricted: true
+        },
+        {
+          path: "/marks",
+          name: "Marks & Grading",
+          description: "View and manage marking schemes (Admin only)",
+          restricted: true
+        },
+        {
+          path: "/difficulty-analysis",
+          name: "Difficulty Analysis",
+          description: "Analyze question difficulty levels (Admin only)",
+          restricted: true
+        },
+        {
+          path: "/info",
+          name: "System Information",
+          description: "View system information and details",
+          restricted: false
+        },
+        {
+          path: "/all-link",
+          name: "All System Routes",
+          description: "View and access all system routes (Superuser only)",
+          restricted: true
+        }
+      ];
+      
+      // Return routes and masked API key
+      const apiKey = process.env.SUPERUSER_API_KEY || '';
+      const maskedApiKey = apiKey.length > 10
+        ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}`
+        : "[API KEY NOT SET]";
+      
+      res.json({ 
+        routes,
+        apiKey: maskedApiKey
+      });
+    } catch (error) {
+      console.error("Error fetching routes:", error);
+      res.status(500).json({ message: "Failed to fetch routes" });
+    }
+  });
+  
   // Seed default marks data if it doesn't exist
   await seedDefaultMarks();
 
