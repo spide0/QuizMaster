@@ -580,6 +580,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const questions = await storage.getQuizQuestions(0); // Get all questions
       const attempts = await storage.getCompletedAttempts();
       
+      // Define difficulty thresholds
+      const DIFFICULTY_THRESHOLDS = {
+        easy: 70, // >= 70% correct answers is considered easy
+        hard: 30, // <= 30% correct answers is considered hard
+        // Between 30% and 70% is considered moderate
+      };
+      
       // Process question difficulty data
       const questionDifficulty = questions.map(question => {
         // Get all answers for this question
@@ -605,12 +612,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? (correctAnswerCount / totalAttempts) * 100 
           : 0;
         
-        // Determine difficulty level
-        let difficulty: "easy" | "moderate" | "hard" = "moderate";
-        if (correctPercentage >= 70) {
+        // Automatically determine difficulty level based on threshold percentages
+        let difficulty: "easy" | "moderate" | "hard";
+        if (correctPercentage >= DIFFICULTY_THRESHOLDS.easy) {
           difficulty = "easy";
-        } else if (correctPercentage <= 30) {
+        } else if (correctPercentage <= DIFFICULTY_THRESHOLDS.hard) {
           difficulty = "hard";
+        } else {
+          difficulty = "moderate";
         }
         
         return {
@@ -621,7 +630,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           incorrectAnswerCount,
           totalAttempts,
           correctPercentage,
-          difficulty
+          difficulty,
+          difficultyScore: correctPercentage // Include raw percentage for more detailed analysis
         };
       });
       

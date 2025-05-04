@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BarChart, PieChart, Loader2, AlertTriangle } from "lucide-react";
+import { BarChart, PieChart, Loader2, AlertTriangle, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef } from "react";
 import * as d3 from 'd3';
 
@@ -16,6 +18,7 @@ interface QuestionDifficulty {
   totalAttempts: number;
   correctPercentage: number;
   difficulty: "easy" | "moderate" | "hard";
+  difficultyScore: number; // Raw percentage for more precise analysis
 }
 
 export function QuestionDifficultyAnalysis() {
@@ -126,6 +129,7 @@ export function QuestionDifficultyAnalysis() {
                       <th scope="col" className="px-6 py-3">Correct</th>
                       <th scope="col" className="px-6 py-3">Incorrect</th>
                       <th scope="col" className="px-6 py-3">% Correct</th>
+                      <th scope="col" className="px-6 py-3">Difficulty Scale</th>
                       <th scope="col" className="px-6 py-3">Difficulty</th>
                     </tr>
                   </thead>
@@ -143,6 +147,31 @@ export function QuestionDifficultyAnalysis() {
                         </td>
                         <td className="px-6 py-4">
                           {question.correctPercentage.toFixed(1)}%
+                        </td>
+                        <td className="px-6 py-4">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="w-full flex gap-2 items-center">
+                                  <Progress 
+                                    value={question.correctPercentage} 
+                                    className="h-2"
+                                    style={{
+                                      background: question.difficulty === 'hard' ? '#fee2e2' : 
+                                                  question.difficulty === 'moderate' ? '#fef3c7' : '#dcfce7'
+                                    }}
+                                  />
+                                  <Info className="h-4 w-4 text-gray-400" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Difficulty score: {question.difficultyScore.toFixed(1)}%</p>
+                                <p>Easy: ≥70% correct answers</p>
+                                <p>Moderate: 30-70% correct answers</p>
+                                <p>Hard: ≤30% correct answers</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </td>
                         <td className="px-6 py-4">
                           <Badge className={getDifficultyColor(question.difficulty)}>
