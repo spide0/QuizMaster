@@ -43,6 +43,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup WebSocket server for real-time monitoring
   setupWebSocketServer(httpServer);
+  
+  // Initialize default project info
+  const projectInfo = {
+    name: "QuizMaster Platform",
+    id: "quiz-master-2025",
+    personal_notion_page: "https://notion.so/your-personal-page",
+    personal_group_page_notion: "https://notion.so/your-group-page",
+    github_id: "quizmaster",
+    project_github_link: "https://github.com/quizmaster/quiz-platform"
+  };
 
   // Quiz related routes
   // Get all quizzes

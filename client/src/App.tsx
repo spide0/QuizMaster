@@ -17,6 +17,8 @@ import QuizSessionPage from "@/pages/quiz-session-page";
 import ResultsPage from "@/pages/results-page";
 import MonitorPage from "@/pages/monitor-page";
 import MarksPage from "@/pages/marks-page";
+import DifficultyAnalysisPage from "@/pages/difficulty-analysis-page";
+import InfoPage from "@/pages/info-page";
 
 function Router() {
   return (
@@ -32,6 +34,8 @@ function Router() {
       <ProtectedRoute path="/results/:id" component={ResultsPage} />
       <ProtectedRoute path="/monitor" component={MonitorPage} roles={["admin"]} />
       <ProtectedRoute path="/marks" component={MarksPage} roles={["admin"]} />
+      <ProtectedRoute path="/difficulty-analysis" component={DifficultyAnalysisPage} roles={["admin"]} />
+      <ProtectedRoute path="/info" component={InfoPage} />
       <Route component={NotFound} />
     </Switch>
   );
