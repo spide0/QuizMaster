@@ -672,33 +672,39 @@ async function seedDefaultMarks() {
     if (existingMarks.length === 0) {
       const defaultMarks = [
         {
-          mark: "A (90-100%)",
-          justification: "Exceptional understanding of all concepts. Demonstrates perfect or near-perfect knowledge.",
-          internalRoute: "/api/grades/a-grade",
+          mark: "15/15",
+          justification: "Exceptional quiz platform with all features: role-based authentication, real-time monitoring with anti-cheat detection, D3.js visualizations, and comprehensive difficulty analysis for questions.",
+          internalRoute: "/monitor",
           threshold: 90
         },
         {
-          mark: "B (80-89%)",
-          justification: "Strong grasp of material with minor errors. Shows comprehensive knowledge of most concepts.",
-          internalRoute: "/api/grades/b-grade",
+          mark: "12/15",
+          justification: "Strong implementation with user authentication, quiz creation system, and analytics dashboard. Minor improvements needed in visualization or real-time monitoring features.",
+          internalRoute: "/difficulty-analysis",
           threshold: 80
         },
         {
-          mark: "C (70-79%)",
-          justification: "Satisfactory understanding with some gaps in knowledge. Demonstrates basic competency.",
-          internalRoute: "/api/grades/c-grade",
+          mark: "10/15",
+          justification: "Solid quiz platform with functioning authentication, quiz taking capability, and results tracking. Includes admin dashboard with quiz statistics and pass rates.",
+          internalRoute: "/results",
           threshold: 70
         },
         {
-          mark: "D (60-69%)",
-          justification: "Limited understanding with significant knowledge gaps. Meets minimum requirements.",
-          internalRoute: "/api/grades/d-grade",
+          mark: "8/15",
+          justification: "Functional quiz system with basic user management, quiz creation, and attempt tracking. Limited analytics and missing anti-cheat mechanisms.",
+          internalRoute: "/quizzes",
           threshold: 60
         },
         {
-          mark: "F (Below 60%)",
-          justification: "Insufficient knowledge of core concepts. Does not meet minimum requirements.",
-          internalRoute: "/api/grades/f-grade",
+          mark: "5/15",
+          justification: "Basic quiz platform with minimal features. Authentication works but lacks advanced functionality like difficulty analysis, real-time monitoring, or data visualization.",
+          internalRoute: "/profile",
+          threshold: 40
+        },
+        {
+          mark: "0/15",
+          justification: "Incomplete quiz platform with critical features missing. Major issues with quiz functionality, authentication, or data persistence requiring significant improvements.",
+          internalRoute: "/auth",
           threshold: 0
         }
       ];
