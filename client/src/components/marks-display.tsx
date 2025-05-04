@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { D3Table } from "@/components/ui/d3-table";
-import { BarChart, PieChart, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import * as d3 from 'd3';
 
 interface Mark {
   id: number;
@@ -35,7 +35,7 @@ type MarkFormValues = z.infer<typeof markFormSchema>;
 
 export function MarksDisplay() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("table");
+  const tableRef = useRef<HTMLDivElement>(null);
   
   // Fetch marks data
   const { data: marks = [], isLoading: isLoadingMarks } = useQuery<Mark[]>({
@@ -47,31 +47,158 @@ export function MarksDisplay() {
     queryKey: ["/api/user-performance"],
   });
   
-  // Format data for D3 table
-  const tableData = {
-    headers: ["Mark", "Justification", "Internal Route", "Threshold (%)", "Student Count"],
-    rows: marks.map(mark => {
-      // Find the corresponding performance data for this mark
-      const performanceData = userPerformanceData.find(p => p.mark === mark.mark);
-      return {
-        "Mark": mark.mark,
-        "Justification": mark.justification,
-        "Internal Route": mark.internalRoute,
-        "Threshold (%)": mark.threshold,
-        "Student Count": performanceData ? performanceData.count : 0
-      };
-    })
-  };
-  
-  // Format data for pie chart
-  const pieChartData = {
-    headers: ["Mark", "Student Count", "Percentage"],
-    rows: userPerformanceData.map(data => ({
-      "Mark": data.mark,
-      "Student Count": data.count,
-      "Percentage": data.percentage
-    }))
-  };
+  // Create D3.js table
+  useEffect(() => {
+    if (tableRef.current && marks.length > 0 && !isLoadingMarks) {
+      // Clear previous content
+      d3.select(tableRef.current).selectAll("*").remove();
+      
+      const width = 800;
+      const height = 500;
+      const margin = { top: 30, right: 30, bottom: 30, left: 30 };
+      
+      // Create SVG
+      const svg = d3.select(tableRef.current)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("preserveAspectRatio", "xMidYMid meet");
+      
+      // Title
+      svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", margin.top)
+        .attr("text-anchor", "middle")
+        .style("font-size", "20px")
+        .style("font-weight", "bold")
+        .style("fill", "#1e293b")
+        .text("QuizMaster Marking Scheme (out of 15)");
+      
+      // Table container
+      const table = svg.append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top + 40})`);
+      
+      // Define table dimensions
+      const tableWidth = width - margin.left - margin.right;
+      const columnCount = 3;
+      const columnWidth = tableWidth / columnCount;
+      const rowHeight = 60;
+      const headerHeight = 40;
+      
+      // Table headers
+      const headers = ["Mark (out of 15)", "Justification for Marking", "Internal Routes"];
+      
+      // Header cells
+      table.selectAll(".header")
+        .data(headers)
+        .enter()
+        .append("rect")
+        .attr("x", (d, i) => i * columnWidth)
+        .attr("y", 0)
+        .attr("width", columnWidth)
+        .attr("height", headerHeight)
+        .attr("fill", "#3b82f6")
+        .attr("stroke", "#cbd5e1")
+        .attr("stroke-width", 1);
+      
+      // Header text
+      table.selectAll(".header-text")
+        .data(headers)
+        .enter()
+        .append("text")
+        .attr("x", (d, i) => i * columnWidth + columnWidth / 2)
+        .attr("y", headerHeight / 2)
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "middle")
+        .style("font-weight", "bold")
+        .style("fill", "white")
+        .text(d => d);
+      
+      // Data rows
+      marks.forEach((mark, rowIndex) => {
+        // Row cells
+        table.append("rect")
+          .attr("x", 0)
+          .attr("y", headerHeight + rowIndex * rowHeight)
+          .attr("width", columnWidth)
+          .attr("height", rowHeight)
+          .attr("fill", rowIndex % 2 === 0 ? "#f8fafc" : "#f1f5f9")
+          .attr("stroke", "#cbd5e1")
+          .attr("stroke-width", 1);
+        
+        table.append("rect")
+          .attr("x", columnWidth)
+          .attr("y", headerHeight + rowIndex * rowHeight)
+          .attr("width", columnWidth)
+          .attr("height", rowHeight)
+          .attr("fill", rowIndex % 2 === 0 ? "#f8fafc" : "#f1f5f9")
+          .attr("stroke", "#cbd5e1")
+          .attr("stroke-width", 1);
+        
+        table.append("rect")
+          .attr("x", columnWidth * 2)
+          .attr("y", headerHeight + rowIndex * rowHeight)
+          .attr("width", columnWidth)
+          .attr("height", rowHeight)
+          .attr("fill", rowIndex % 2 === 0 ? "#f8fafc" : "#f1f5f9")
+          .attr("stroke", "#cbd5e1")
+          .attr("stroke-width", 1);
+        
+        // Mark value
+        table.append("text")
+          .attr("x", columnWidth / 2)
+          .attr("y", headerHeight + rowIndex * rowHeight + rowHeight / 2)
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .style("font-weight", "bold")
+          .style("fill", "#334155")
+          .text(mark.mark);
+        
+        // Justification text with word wrap
+        const justificationText = table.append("text")
+          .attr("x", columnWidth + 10)
+          .attr("y", headerHeight + rowIndex * rowHeight + 20)
+          .attr("text-anchor", "start")
+          .attr("dominant-baseline", "middle")
+          .style("fill", "#334155")
+          .style("font-size", "14px");
+        
+        const justificationWords = mark.justification.split(/\s+/);
+        let justificationLine = "";
+        let justificationLineNumber = 0;
+        
+        justificationWords.forEach(word => {
+          const testLine = justificationLine + (justificationLine ? " " : "") + word;
+          if (testLine.length * 6 > columnWidth - 20) {
+            justificationText.append("tspan")
+              .attr("x", columnWidth + 10)
+              .attr("dy", justificationLineNumber === 0 ? 0 : 20)
+              .text(justificationLine);
+            justificationLine = word;
+            justificationLineNumber++;
+          } else {
+            justificationLine = testLine;
+          }
+        });
+        
+        // Add the last line
+        justificationText.append("tspan")
+          .attr("x", columnWidth + 10)
+          .attr("dy", justificationLineNumber === 0 ? 0 : 20)
+          .text(justificationLine);
+        
+        // Route text
+        table.append("text")
+          .attr("x", columnWidth * 2 + 10)
+          .attr("y", headerHeight + rowIndex * rowHeight + rowHeight / 2)
+          .attr("text-anchor", "start")
+          .attr("dominant-baseline", "middle")
+          .style("fill", "#334155")
+          .text(mark.internalRoute);
+      });
+    }
+  }, [marks, isLoadingMarks]);
   
   // Add new mark mutation
   const addMarkMutation = useMutation({
@@ -112,48 +239,6 @@ export function MarksDisplay() {
     addMarkMutation.mutate(values);
   };
   
-  // Performance Chart using D3Table
-  const PerformanceChart = () => (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Mark Distribution</CardTitle>
-          <CardDescription>Student performance distribution by mark grade</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <D3Table 
-            data={pieChartData} 
-            valueKey="Percentage"
-            colorScale={['#f0f9ff', '#bae6fd', '#7dd3fc', '#38bdf8', '#0ea5e9', '#0284c7']}
-            width={700}
-            height={350}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
-  
-  // Performance Table
-  const PerformanceTable = () => (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Marks Table</CardTitle>
-          <CardDescription>Mark definitions with associated thresholds and routes</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <D3Table 
-            data={tableData} 
-            valueKey="Threshold (%)"
-            colorScale={['#f0f9ff', '#bae6fd', '#7dd3fc', '#38bdf8', '#0ea5e9', '#0284c7']}
-            width={700}
-            height={450}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
-  
   const isLoading = isLoadingMarks || isLoadingPerformance;
   
   if (isLoading) {
@@ -166,28 +251,28 @@ export function MarksDisplay() {
   
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-6">Marks Visualization</h1>
+      <h1 className="text-2xl font-bold mb-6">Marking Scheme Visualization</h1>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full md:w-[400px] grid-cols-2">
-          <TabsTrigger value="table" className="flex items-center gap-2">
-            <BarChart className="h-4 w-4" />
-            <span>Marks Table</span>
-          </TabsTrigger>
-          <TabsTrigger value="chart" className="flex items-center gap-2">
-            <PieChart className="h-4 w-4" />
-            <span>Distribution</span>
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="table" className="space-y-4">
-          <PerformanceTable />
-        </TabsContent>
-        
-        <TabsContent value="chart" className="space-y-4">
-          <PerformanceChart />
-        </TabsContent>
-      </Tabs>
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle>Marks Table</CardTitle>
+          <CardDescription>Grading system with justifications and internal routes</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div 
+            ref={tableRef} 
+            className="d3-table-container overflow-x-auto"
+            style={{ minHeight: "500px" }}
+          ></div>
+        </CardContent>
+      </Card>
+      
+      <div className="mt-4 bg-gray-50 p-4 rounded-md">
+        <p className="text-sm text-gray-700">
+          <strong>Note:</strong> The marks table shows the grading system for the QuizMaster platform. 
+          Each row represents a specific mark level with its justification and internal route for accessing related features.
+        </p>
+      </div>
     </div>
   );
 }
