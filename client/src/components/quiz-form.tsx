@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,7 +54,7 @@ export function QuizForm() {
   const defaultValues: QuizFormValues = {
     title: "",
     description: "",
-    categoryId: 0,
+    categoryId: 1, // Default value, will be updated when categories load
     timeLimit: 30,
     passingScore: 70,
     questions: [
@@ -73,6 +73,13 @@ export function QuizForm() {
     defaultValues,
     mode: "onChange"
   });
+  
+  // Update categoryId when categories load
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      form.setValue('categoryId', categories[0].id);
+    }
+  }, [categories, form]);
 
   // Setup field array for questions
   const { fields, append, remove } = useFieldArray({
@@ -166,8 +173,8 @@ export function QuizForm() {
                   <FormItem className="sm:col-span-4">
                     <FormLabel>Category</FormLabel>
                     <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value.toString()}
+                      onValueChange={(value) => field.onChange(parseInt(value))} 
+                      value={field.value ? field.value.toString() : undefined}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -175,14 +182,22 @@ export function QuizForm() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
+                        {categories && categories.length > 0 ? (
+                          categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    {/* Add debug info to help troubleshoot */}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {categories.length} categories available
+                    </p>
                   </FormItem>
                 )}
               />
