@@ -26,14 +26,19 @@ declare global {
 
 const scryptAsync = promisify(scrypt);
 
-async function hashPassword(password: string) {
+// Export this function to be used elsewhere
+export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
 }
 
-async function comparePasswords(supplied: string, stored: string) {
+export async function comparePasswords(supplied: string, stored: string) {
   const [hashed, salt] = stored.split(".");
+  if (!salt || !hashed) {
+    console.error("Invalid stored password format", stored);
+    return false;
+  }
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return timingSafeEqual(hashedBuf, suppliedBuf);
@@ -62,13 +67,20 @@ export function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Use email for login instead of username
+  // Use either email or username for login
   passport.use(
     new LocalStrategy(
       { usernameField: 'email' },
-      async (email, password, done) => {
+      async (emailOrUsername, password, done) => {
         try {
-          const user = await storage.getUserByEmail(email);
+          // First try to find by email
+          let user = await storage.getUserByEmail(emailOrUsername);
+          
+          // If not found by email, try by username
+          if (!user) {
+            user = await storage.getUserByUsername(emailOrUsername);
+          }
+          
           if (!user || !(await comparePasswords(password, user.password))) {
             return done(null, false);
           } else {

@@ -104,7 +104,7 @@ export const insertMarkSchema = createInsertSchema(marks).omit({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string(), // Accept either email or username
   password: z.string().min(6),
 });
 

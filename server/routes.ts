@@ -74,11 +74,17 @@ async function createSuperuser() {
       return;
     }
     
-    // Create the superuser
+    // Import the hashPassword function from auth
+    const { hashPassword } = require('./auth');
+    
+    // Hash the password before storage
+    const hashedPassword = await hashPassword("T9x!rV@5mL#8wQz&Kd3");
+    
+    // Create the superuser with hashed password
     const superuserData = {
       username: "root",
       email: "root@quizmaster.com",
-      password: "T9x!rV@5mL#8wQz&Kd3", // This will be hashed by the auth system
+      password: hashedPassword,
       role: "superuser",
       isVerified: true
     };

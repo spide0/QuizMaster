@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -108,10 +109,13 @@ export function AuthForm() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Email or Username</FormLabel>
                       <FormControl>
-                        <Input placeholder="Email address" {...field} />
+                        <Input placeholder="Enter email or username" {...field} />
                       </FormControl>
+                      <FormDescription className="text-xs">
+                        You can use either your email address or username
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
