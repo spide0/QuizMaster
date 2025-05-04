@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import * as d3 from 'd3';
+import { Link, useLocation } from "wouter";
 
 interface Mark {
   id: number;
@@ -46,6 +47,17 @@ export function MarksDisplay() {
   const { data: userPerformanceData = [], isLoading: isLoadingPerformance } = useQuery<UserPerformanceData[]>({
     queryKey: ["/api/user-performance"],
   });
+  
+  // List of valid routes in the application
+  const validRoutes = [
+    "/", "/auth", "/profile", "/quizzes", "/quiz/create", "/quiz-session", 
+    "/results", "/monitor", "/marks", "/difficulty-analysis", "/info", "/all-link"
+  ];
+  
+  // Function to check if a route exists in our application
+  const routeExists = (route: string): boolean => {
+    return validRoutes.includes(route);
+  };
   
   // Create enhanced D3.js table with visual indicators
   useEffect(() => {
@@ -198,13 +210,14 @@ export function MarksDisplay() {
             .style("text-align", "center")
             .style("width", "160px");
           
-          // Create button-like link
-          routeCell.append("a")
-            .attr("href", mark.internalRoute)
+          // Create an interactive button element instead of an anchor
+          const buttonElem = routeCell.append("button")
             .style("display", "inline-block")
             .style("padding", "8px 16px")
             .style("background", "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)")
             .style("color", "white")
+            .style("border", "none")
+            .style("cursor", "pointer")
             .style("border-radius", "6px")
             .style("font-weight", "medium")
             .style("text-decoration", "none")
@@ -220,6 +233,17 @@ export function MarksDisplay() {
               d3.select(this)
                 .style("background", "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)")
                 .style("box-shadow", "0 1px 2px rgba(0, 0, 0, 0.1)");
+            })
+            .on("click", function() {
+              // Check if it's a valid route first
+              if (validRoutes.includes(mark.internalRoute)) {
+                // Use valid internal route
+                window.location.href = mark.internalRoute;
+              } else {
+                // Fallback to a default page if route doesn't exist
+                console.log(`Route ${mark.internalRoute} not found, redirecting to home`);
+                window.location.href = "/";
+              }
             });
         });
       }
