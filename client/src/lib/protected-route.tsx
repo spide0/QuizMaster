@@ -34,6 +34,11 @@ export function ProtectedRoute({
     );
   }
 
+  // Superuser has access to all routes
+  if (user.role === 'superuser') {
+    return <Route path={path} component={Component} />
+  }
+  
   // Check for role restrictions if specified
   if (roles && roles.length > 0 && !roles.includes(user.role)) {
     return (

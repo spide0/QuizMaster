@@ -34,6 +34,62 @@ function isAdmin(req: any, res: any) {
   return checkRole(req, res, ["admin"]);
 }
 
+// Helper for superuser role check
+function isSuperuser(req: any, res: any) {
+  return checkRole(req, res, ["superuser"]);
+}
+
+// Helper to verify API key in request headers
+function validateApiKey(req: any, res: any) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: "Invalid authorization header" });
+  }
+  
+  const providedApiKey = authHeader.split(' ')[1];
+  const validApiKey = process.env.SUPERUSER_API_KEY;
+  
+  if (!validApiKey || providedApiKey !== validApiKey) {
+    return res.status(403).json({ message: "Invalid API key" });
+  }
+  
+  return null;
+}
+
+// Create or ensure the superuser exists
+async function createSuperuser() {
+  try {
+    // Check if superuser already exists
+    const existingSuperuser = await storage.getUserByUsername("root");
+    
+    if (existingSuperuser) {
+      // Update to ensure superuser role
+      if (existingSuperuser.role !== "superuser") {
+        await db.update(users)
+          .set({ role: "superuser" })
+          .where(eq(users.id, existingSuperuser.id))
+          .execute();
+      }
+      console.log("Superuser verified");
+      return;
+    }
+    
+    // Create the superuser
+    const superuserData = {
+      username: "root",
+      email: "root@quizmaster.com",
+      password: "T9x!rV@5mL#8wQz&Kd3", // This will be hashed by the auth system
+      role: "superuser",
+      isVerified: true
+    };
+    
+    await storage.createUser(superuserData);
+    console.log("Superuser created successfully");
+  } catch (error) {
+    console.error("Error creating superuser:", error);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
   setupAuth(app);
@@ -43,6 +99,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup WebSocket server for real-time monitoring
   setupWebSocketServer(httpServer);
+  
+  // Ensure superuser exists
+  await createSuperuser();
   
   // Initialize default project info
   const projectInfo = {

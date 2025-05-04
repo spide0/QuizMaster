@@ -19,6 +19,7 @@ import MonitorPage from "@/pages/monitor-page";
 import MarksPage from "@/pages/marks-page";
 import DifficultyAnalysisPage from "@/pages/difficulty-analysis-page";
 import InfoPage from "@/pages/info-page";
+import AllLinkPage from "@/pages/all-link-page";
 
 function Router() {
   return (
@@ -28,14 +29,15 @@ function Router() {
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/quizzes" component={QuizzesPage} />
       <ProtectedRoute path="/quizzes/:id" component={QuizDetailsPage} />
-      <ProtectedRoute path="/quiz/create" component={QuizCreatePage} roles={["admin"]} />
+      <ProtectedRoute path="/quiz/create" component={QuizCreatePage} roles={["admin", "superuser"]} />
       <ProtectedRoute path="/quiz/session/:id" component={QuizSessionPage} />
       <ProtectedRoute path="/results" component={ResultsPage} />
       <ProtectedRoute path="/results/:id" component={ResultsPage} />
-      <ProtectedRoute path="/monitor" component={MonitorPage} roles={["admin"]} />
-      <ProtectedRoute path="/marks" component={MarksPage} roles={["admin"]} />
-      <ProtectedRoute path="/difficulty-analysis" component={DifficultyAnalysisPage} roles={["admin"]} />
+      <ProtectedRoute path="/monitor" component={MonitorPage} roles={["admin", "superuser"]} />
+      <ProtectedRoute path="/marks" component={MarksPage} roles={["admin", "superuser"]} />
+      <ProtectedRoute path="/difficulty-analysis" component={DifficultyAnalysisPage} roles={["admin", "superuser"]} />
       <ProtectedRoute path="/info" component={InfoPage} />
+      <ProtectedRoute path="/all-link" component={AllLinkPage} roles={["superuser"]} />
       <Route component={NotFound} />
     </Switch>
   );
