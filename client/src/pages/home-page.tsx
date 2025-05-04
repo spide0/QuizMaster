@@ -38,7 +38,7 @@ interface QuizStats {
   uniqueUsers: number;
   averageScore: number;
   passRate: number;
-  recentAttempt: Date | null;
+  recentAttempt: string | Date | null;
 }
 
 interface Attempt {
@@ -158,8 +158,12 @@ export default function HomePage() {
   const isLoading = isLoadingAttempts || isLoadingQuizzes || isLoadingAvailable || (isAdmin && isLoadingStats);
   
   // Format date for quiz statistics
-  const formatQuizDate = (date: Date | null) => {
-    if (!date) return 'N/A';
+  const formatQuizDate = (dateValue: Date | string | null) => {
+    if (!dateValue) return 'N/A';
+    
+    // Convert to Date object if it's a string
+    const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
+    
     return date.toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
