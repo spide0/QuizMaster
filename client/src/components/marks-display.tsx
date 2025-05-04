@@ -47,7 +47,7 @@ export function MarksDisplay() {
     queryKey: ["/api/user-performance"],
   });
   
-  // Create D3.js table - rebuild with simpler approach
+  // Create enhanced D3.js table with visual indicators
   useEffect(() => {
     if (tableRef.current && !isLoadingMarks) {
       // Clear previous content
@@ -55,19 +55,25 @@ export function MarksDisplay() {
       
       const containerWidth = tableRef.current.clientWidth || 800;
       const width = Math.min(containerWidth, 1000);
-      const height = 500;
+      const height = 800; // Increase height for more rows
       
       // Create table element directly
       const table = d3.select(tableRef.current)
         .append("table")
         .attr("class", "min-w-full divide-y divide-gray-200 border-collapse")
         .style("border-collapse", "collapse")
-        .style("width", "100%");
+        .style("width", "100%")
+        .style("box-shadow", "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)");
       
-      // Add table caption
+      // Add table caption with gradient and shadow
       table.append("caption")
-        .attr("class", "text-lg font-semibold py-2 text-center bg-blue-50")
-        .text("QuizMaster Marking Scheme (out of 15)");
+        .attr("class", "text-xl font-semibold py-4 text-center")
+        .style("background", "linear-gradient(90deg, #e0f2fe 0%, #dbeafe 100%)")
+        .style("color", "#1e40af")
+        .style("border-top-left-radius", "8px")
+        .style("border-top-right-radius", "8px")
+        .style("box-shadow", "0 1px 2px 0 rgba(0, 0, 0, 0.05)")
+        .text("QuizMaster Platform Feature Evaluation (out of 15)");
       
       // Create table header
       const thead = table.append("thead")
@@ -75,17 +81,18 @@ export function MarksDisplay() {
       
       const headerRow = thead.append("tr");
       
-      // Add header cells
-      const headers = ["Mark (out of 15)", "Justification for Marking", "Internal Routes"];
+      // Add header cells with improved styling
+      const headers = ["Mark", "Feature Justification", "Internal Routes"];
       
       headers.forEach(header => {
         headerRow.append("th")
           .attr("class", "px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider")
-          .style("background-color", "#2563eb")
+          .style("background", "linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%)")
           .style("color", "white")
-          .style("padding", "12px")
+          .style("padding", "14px")
           .style("font-weight", "bold")
-          .style("border", "1px solid #ddd")
+          .style("border", "1px solid #93c5fd")
+          .style("text-align", "center")
           .text(header);
       });
       
@@ -104,51 +111,147 @@ export function MarksDisplay() {
           .style("border", "1px solid #ddd")
           .text("No marks data available");
       } else {
-        // Add data rows
-        marks.forEach((mark, index) => {
+        // Sort marks by threshold in descending order
+        const sortedMarks = [...marks].sort((a, b) => b.threshold - a.threshold);
+        
+        // Add data rows with interactive features
+        sortedMarks.forEach((mark, index) => {
           const row = tbody.append("tr")
-            .attr("class", index % 2 === 0 ? "bg-white" : "bg-gray-50");
+            .attr("class", index % 2 === 0 ? "bg-white" : "bg-gray-50")
+            .style("transition", "all 0.2s ease-in-out")
+            .on("mouseover", function() {
+              d3.select(this)
+                .style("background", "#f0f9ff")
+                .style("transform", "scale(1.01)");
+            })
+            .on("mouseout", function() {
+              d3.select(this)
+                .style("background", index % 2 === 0 ? "#ffffff" : "#f9fafb")
+                .style("transform", "scale(1.0)");
+            });
           
-          // Mark cell
-          row.append("td")
+          // Mark cell with color indicator based on threshold
+          const markCell = row.append("td")
             .attr("class", "px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900")
             .style("padding", "12px")
-            .style("border", "1px solid #ddd")
+            .style("border", "1px solid #e5e7eb")
             .style("font-weight", "bold")
             .style("text-align", "center")
-            .text(mark.mark);
+            .style("width", "130px");
           
-          // Justification cell
-          row.append("td")
+          // Create color indicator and mark text
+          markCell.append("div")
+            .style("display", "flex")
+            .style("flex-direction", "column")
+            .style("align-items", "center")
+            .style("gap", "6px");
+            
+          // Add mark text
+          markCell.append("span")
+            .text(mark.mark)
+            .style("font-size", "16px");
+            
+          // Add threshold indicator
+          markCell.append("div")
+            .style("width", "80%")
+            .style("height", "8px")
+            .style("margin", "6px auto 0")
+            .style("border-radius", "4px")
+            .style("background", getGradientForThreshold(mark.threshold));
+            
+          // Add threshold text
+          markCell.append("span")
+            .text(`${mark.threshold}%`)
+            .style("font-size", "12px")
+            .style("color", "#6b7280");
+          
+          // Justification cell with feature highlights
+          const justCell = row.append("td")
             .attr("class", "px-6 py-4 text-sm text-gray-700")
-            .style("padding", "12px")
-            .style("border", "1px solid #ddd")
-            .text(mark.justification);
+            .style("padding", "16px")
+            .style("border", "1px solid #e5e7eb")
+            .style("line-height", "1.5");
           
-          // Internal route cell
-          row.append("td")
+          // Highlight key features in justification text
+          const keyFeatures = [
+            "role-based authentication", "anti-cheat", "WebSocket", 
+            "D3.js", "PDF", "CSV", "export", "visualization", 
+            "monitoring", "superuser", "real-time", "difficulty analysis"
+          ];
+          
+          // Process justification text to highlight keywords
+          let justificationText = mark.justification;
+          keyFeatures.forEach(feature => {
+            const regex = new RegExp(feature, 'gi');
+            justificationText = justificationText.replace(regex, match => 
+              `<span style="background-color: #dbeafe; padding: 2px 4px; border-radius: 4px; font-weight: 500;">${match}</span>`
+            );
+          });
+          
+          justCell.html(justificationText);
+          
+          // Internal route cell with interactive link
+          const routeCell = row.append("td")
             .attr("class", "px-6 py-4 whitespace-nowrap text-sm text-blue-600")
             .style("padding", "12px")
-            .style("border", "1px solid #ddd")
-            .append("a")
+            .style("border", "1px solid #e5e7eb")
+            .style("text-align", "center")
+            .style("width", "160px");
+          
+          // Create button-like link
+          routeCell.append("a")
             .attr("href", mark.internalRoute)
-            .style("color", "#2563eb")
-            .style("text-decoration", "underline")
-            .text(mark.internalRoute);
+            .style("display", "inline-block")
+            .style("padding", "8px 16px")
+            .style("background", "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)")
+            .style("color", "white")
+            .style("border-radius", "6px")
+            .style("font-weight", "medium")
+            .style("text-decoration", "none")
+            .style("transition", "all 0.2s")
+            .style("box-shadow", "0 1px 2px rgba(0, 0, 0, 0.1)")
+            .text(mark.internalRoute)
+            .on("mouseover", function() {
+              d3.select(this)
+                .style("background", "linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%)")
+                .style("box-shadow", "0 4px 6px rgba(0, 0, 0, 0.1)");
+            })
+            .on("mouseout", function() {
+              d3.select(this)
+                .style("background", "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)")
+                .style("box-shadow", "0 1px 2px rgba(0, 0, 0, 0.1)");
+            });
         });
       }
       
-      // Add D3 features - colorize mark cells based on threshold
-      tbody.selectAll("tr")
-        .selectAll("td:first-child")
-        .style("background-color", (d, i) => {
-          const threshold = marks[i]?.threshold || 0;
-          if (threshold >= 80) return "#dcfce7"; // Green for high
-          if (threshold >= 60) return "#fef3c7"; // Yellow for medium
-          return "#fee2e2"; // Red for low
-        });
+      // Add table footer with summary
+      const tfoot = table.append("tfoot");
+      const footerRow = tfoot.append("tr");
+      
+      footerRow.append("td")
+        .attr("colspan", "3")
+        .style("padding", "12px")
+        .style("background", "#f8fafc")
+        .style("border", "1px solid #e5e7eb")
+        .style("text-align", "center")
+        .style("font-size", "14px")
+        .style("color", "#475569")
+        .html(`Showing <strong>${marks.length}</strong> feature grades for the QuizMaster platform.
+          Each feature set has internal route links to the corresponding functionality.`);
     }
   }, [marks, isLoadingMarks]);
+  
+  // Helper function to generate gradient colors based on threshold
+  function getGradientForThreshold(threshold: number): string {
+    if (threshold >= 90) return "linear-gradient(90deg, #10b981 0%, #059669 100%)";
+    if (threshold >= 80) return "linear-gradient(90deg, #34d399 0%, #10b981 100%)";
+    if (threshold >= 70) return "linear-gradient(90deg, #6ee7b7 0%, #34d399 100%)";
+    if (threshold >= 60) return "linear-gradient(90deg, #fcd34d 0%, #f59e0b 100%)";
+    if (threshold >= 50) return "linear-gradient(90deg, #fbbf24 0%, #d97706 100%)";
+    if (threshold >= 40) return "linear-gradient(90deg, #f59e0b 0%, #b45309 100%)";
+    if (threshold >= 30) return "linear-gradient(90deg, #f87171 0%, #ef4444 100%)";
+    return "linear-gradient(90deg, #ef4444 0%, #b91c1c 100%)";
+  }
   
   // Add new mark mutation
   const addMarkMutation = useMutation({
