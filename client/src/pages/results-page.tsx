@@ -7,8 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText, Download } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { downloadResultsAsCsv, downloadResultsAsPdf } from "@/lib/export-utils";
 
 interface Attempt {
   id: number;
@@ -67,9 +68,34 @@ export default function ResultsPage() {
       
       <main className="py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-6">
-            {id ? "Quiz Results" : isAdmin ? "Results" : "Your Results"}
-          </h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {id ? "Quiz Results" : isAdmin ? "Results" : "Your Results"}
+            </h1>
+            
+            {!id && completedAttempts.length > 0 && !isAdmin && (
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => downloadResultsAsCsv(completedAttempts as any, user?.username || 'user')}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  CSV
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => downloadResultsAsPdf(completedAttempts as any, user?.username || 'user')}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  PDF
+                </Button>
+              </div>
+            )}
+          </div>
           
           {id ? (
             // Show specific result
@@ -97,6 +123,26 @@ export default function ResultsPage() {
                   </div>
                 ) : (
                   <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+                    <div className="px-4 py-3 bg-gray-50 flex justify-end space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => downloadResultsAsCsv(completedAttempts as any, user?.username || 'admin')}
+                        className="flex items-center gap-2"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Export CSV
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => downloadResultsAsPdf(completedAttempts as any, user?.username || 'admin')}
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        Export PDF
+                      </Button>
+                    </div>
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
@@ -114,7 +160,9 @@ export default function ResultsPage() {
                         {completedAttempts.map(attempt => (
                           <tr key={attempt.id}>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">Quiz #{attempt.quizId}</div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {attempt.quiz?.title || `Quiz #${attempt.quizId}`}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-500">{new Date(attempt.endTime || attempt.startTime).toLocaleDateString()}</div>
@@ -167,6 +215,26 @@ export default function ResultsPage() {
               </div>
             ) : (
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+                <div className="px-4 py-3 bg-gray-50 flex justify-end space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => downloadResultsAsCsv(completedAttempts as any, user?.username || 'user')}
+                    className="flex items-center gap-2"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => downloadResultsAsPdf(completedAttempts as any, user?.username || 'user')}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export PDF
+                  </Button>
+                </div>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -184,7 +252,9 @@ export default function ResultsPage() {
                     {completedAttempts.map(attempt => (
                       <tr key={attempt.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">Quiz #{attempt.quizId}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {attempt.quiz?.title || `Quiz #${attempt.quizId}`}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">{new Date(attempt.endTime || attempt.startTime).toLocaleDateString()}</div>

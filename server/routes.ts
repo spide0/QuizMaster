@@ -428,7 +428,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const attempts = await storage.getUserAttempts(req.user.id);
-      res.json(attempts);
+      
+      // Enhance attempts with quiz details for better export functionality
+      const enhancedAttempts = await Promise.all(attempts.map(async (attempt) => {
+        const quiz = await storage.getQuizById(attempt.quizId);
+        return {
+          ...attempt,
+          quiz: quiz || undefined
+        };
+      }));
+      
+      res.json(enhancedAttempts);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch attempts" });
     }
