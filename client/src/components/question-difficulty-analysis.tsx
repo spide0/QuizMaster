@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BarChart, PieChart, Loader2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as d3 from 'd3';
 
 interface QuestionDifficulty {
@@ -204,13 +204,13 @@ function DifficultyPieChart({ data }: { data: ChartData[] }) {
   useState(() => {
     if (chartRef && data && data.length > 0) {
       // Clear previous chart
-      d3.select(chartRef).selectAll('*').remove();
+      d3.select(chartRef as Element).selectAll('*').remove();
       
       const width = 400;
       const height = 300;
       const radius = Math.min(width, height) / 2;
       
-      const svg = d3.select(chartRef)
+      const svg = d3.select(chartRef as Element)
         .append('svg')
         .attr('width', width)
         .attr('height', height)
@@ -221,7 +221,7 @@ function DifficultyPieChart({ data }: { data: ChartData[] }) {
       
       // Generate pie chart data
       const pie = d3.pie<ChartData>()
-        .value(d => d.value);
+        .value((d: ChartData) => d.value);
       
       const arc = d3.arc<d3.PieArcDatum<ChartData>>()
         .innerRadius(0)
@@ -233,7 +233,7 @@ function DifficultyPieChart({ data }: { data: ChartData[] }) {
         .enter()
         .append('path')
         .attr('d', arc)
-        .attr('fill', d => d.data.color)
+        .attr('fill', (d: d3.PieArcDatum<ChartData>) => d.data.color)
         .attr('stroke', 'white')
         .style('stroke-width', '2px')
         .style('opacity', 0.8);
@@ -243,7 +243,7 @@ function DifficultyPieChart({ data }: { data: ChartData[] }) {
         .data(pie(data))
         .enter()
         .append('text')
-        .attr('transform', d => {
+        .attr('transform', (d: d3.PieArcDatum<ChartData>) => {
           const [x, y] = arc.centroid(d);
           const labelRadius = radius * 0.7;
           const angle = (d.startAngle + d.endAngle) / 2;
@@ -253,7 +253,7 @@ function DifficultyPieChart({ data }: { data: ChartData[] }) {
         .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', 'white')
-        .text(d => d.data.value > 0 ? d.data.label : '');
+        .text((d: d3.PieArcDatum<ChartData>) => d.data.value > 0 ? d.data.label : '');
       
       // Add percentage labels
       const percentageLabels = svg.selectAll('text.percentage')
@@ -261,14 +261,14 @@ function DifficultyPieChart({ data }: { data: ChartData[] }) {
         .enter()
         .append('text')
         .attr('class', 'percentage')
-        .attr('transform', d => {
+        .attr('transform', (d: d3.PieArcDatum<ChartData>) => {
           const [x, y] = arc.centroid(d);
           return `translate(${x}, ${y})`;
         })
         .attr('text-anchor', 'middle')
         .style('font-size', '10px')
         .style('fill', 'white')
-        .text(d => {
+        .text((d: d3.PieArcDatum<ChartData>) => {
           const percentage = Math.round((d.data.value / totalValue) * 100);
           return percentage > 0 ? `${percentage}%` : '';
         });
@@ -279,18 +279,18 @@ function DifficultyPieChart({ data }: { data: ChartData[] }) {
         .enter()
         .append('g')
         .attr('class', 'legend')
-        .attr('transform', (d, i) => `translate(-${width/3}, ${height/3 - i * 20})`);
+        .attr('transform', (d: ChartData, i: number) => `translate(-${width/3}, ${height/3 - i * 20})`);
       
       legend.append('rect')
         .attr('width', 15)
         .attr('height', 15)
-        .attr('fill', d => d.color);
+        .attr('fill', (d: ChartData) => d.color);
       
       legend.append('text')
         .attr('x', 20)
         .attr('y', 12.5)
         .style('font-size', '12px')
-        .text(d => `${d.label} (${d.value})`);
+        .text((d: ChartData) => `${d.label} (${d.value})`);
     }
   });
   

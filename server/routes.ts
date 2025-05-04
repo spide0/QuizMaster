@@ -570,6 +570,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch categories" });
     }
   });
+  
+  // Question difficulty analysis endpoint (admin only)
+  app.get("/api/admin/question-difficulty", async (req, res) => {
+    try {
+      const error = isAdmin(req, res);
+      if (error) return;
+      
+      const questions = await storage.getQuizQuestions(0); // Get all questions
+      const attempts = await storage.getCompletedAttempts();
+      
+      // Process question difficulty data
+      const questionDifficulty = questions.map(question => {
+        // Get all answers for this question
+        const questionId = question.id.toString();
+        let correctAnswerCount = 0;
+        let incorrectAnswerCount = 0;
+        
+        attempts.forEach(attempt => {
+          if (!attempt.answers) return;
+          
+          const answers = attempt.answers as Record<string, number>;
+          if (answers[questionId] !== undefined) {
+            if (answers[questionId] === question.correctAnswer) {
+              correctAnswerCount++;
+            } else {
+              incorrectAnswerCount++;
+            }
+          }
+        });
+        
+        const totalAttempts = correctAnswerCount + incorrectAnswerCount;
+        const correctPercentage = totalAttempts > 0 
+          ? (correctAnswerCount / totalAttempts) * 100 
+          : 0;
+        
+        // Determine difficulty level
+        let difficulty: "easy" | "moderate" | "hard" = "moderate";
+        if (correctPercentage >= 70) {
+          difficulty = "easy";
+        } else if (correctPercentage <= 30) {
+          difficulty = "hard";
+        }
+        
+        return {
+          id: question.id,
+          quizId: question.quizId,
+          questionText: question.questionText,
+          correctAnswerCount,
+          incorrectAnswerCount,
+          totalAttempts,
+          correctPercentage,
+          difficulty
+        };
+      });
+      
+      res.json(questionDifficulty);
+    } catch (error) {
+      console.error("Error fetching question difficulty data:", error);
+      res.status(500).json({ message: "Failed to analyze question difficulty" });
+    }
+  });
+  
+  // Info endpoint (accessible to all authenticated users)
+  app.get("/api/info", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // Return the project info
+      res.json(projectInfo);
+    } catch (error) {
+      console.error("Error fetching project info:", error);
+      res.status(500).json({ message: "Failed to fetch project information" });
+    }
+  });
 
   // Seed default marks data if it doesn't exist
   await seedDefaultMarks();
