@@ -836,52 +836,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
 // Helper function to seed default marks data
 async function seedDefaultMarks() {
   try {
-    const existingMarks = await storage.getAllMarks();
+    // Always recreate the marks on server startup 
+    // First delete all existing marks
+    await db.delete(marks).execute();
     
-    if (existingMarks.length === 0) {
-      const defaultMarks = [
-        {
-          mark: "15/15",
-          justification: "Exceptional quiz platform with all features: role-based authentication, real-time monitoring with anti-cheat detection, D3.js visualizations, and comprehensive difficulty analysis for questions.",
-          internalRoute: "/monitor",
-          threshold: 90
-        },
-        {
-          mark: "12/15",
-          justification: "Strong implementation with user authentication, quiz creation system, and analytics dashboard. Minor improvements needed in visualization or real-time monitoring features.",
-          internalRoute: "/difficulty-analysis",
-          threshold: 80
-        },
-        {
-          mark: "10/15",
-          justification: "Solid quiz platform with functioning authentication, quiz taking capability, and results tracking. Includes admin dashboard with quiz statistics and pass rates.",
-          internalRoute: "/results",
-          threshold: 70
-        },
-        {
-          mark: "8/15",
-          justification: "Functional quiz system with basic user management, quiz creation, and attempt tracking. Limited analytics and missing anti-cheat mechanisms.",
-          internalRoute: "/quizzes",
-          threshold: 60
-        },
-        {
-          mark: "5/15",
-          justification: "Basic quiz platform with minimal features. Authentication works but lacks advanced functionality like difficulty analysis, real-time monitoring, or data visualization.",
-          internalRoute: "/profile",
-          threshold: 40
-        },
-        {
-          mark: "0/15",
-          justification: "Incomplete quiz platform with critical features missing. Major issues with quiz functionality, authentication, or data persistence requiring significant improvements.",
-          internalRoute: "/auth",
-          threshold: 0
-        }
-      ];
-      
-      for (const mark of defaultMarks) {
-        await storage.createMark(mark);
+    // Create new set of marks with detailed features and internal routes
+    const defaultMarks = [
+      {
+        mark: "15/15",
+        justification: "Exceptional quiz platform with comprehensive features: advanced role-based authentication (admin/user/guest/superuser), real-time monitoring with anti-cheat detection, WebSocket-based live updates, D3.js visualizations, and PDF/CSV export capabilities.",
+        internalRoute: "/all-link",
+        threshold: 95
+      },
+      {
+        mark: "14/15",
+        justification: "Outstanding quiz system with anti-cheat tab switching detection, real-time monitoring, D3.js data visualization, and WebSocket connectivity. Strong admin controls and export functionality in both PDF and CSV formats.",
+        internalRoute: "/monitor",
+        threshold: 90
+      },
+      {
+        mark: "13/15",
+        justification: "Excellent platform with superuser access controls, comprehensive question difficulty analysis using D3.js, and effective anti-cheat mechanisms that detect and report suspicious behavior.",
+        internalRoute: "/difficulty-analysis",
+        threshold: 85
+      },
+      {
+        mark: "12/15",
+        justification: "Very strong implementation with PDF/CSV export functionality, results visualization, and user management. Includes mark display with D3.js tables and properly manages authentication sessions.",
+        internalRoute: "/marks",
+        threshold: 80
+      },
+      {
+        mark: "11/15",
+        justification: "Very good platform with results tracking, export capabilities, and custom visualization components. Features responsive design and proper authentication, but requires minor improvements.",
+        internalRoute: "/results",
+        threshold: 75
+      },
+      {
+        mark: "10/15",
+        justification: "Good quiz application with category management, quiz session functionality, and user profile management. Includes database integration with proper error handling and toast notifications.",
+        internalRoute: "/quiz-session",
+        threshold: 70
+      },
+      {
+        mark: "9/15",
+        justification: "Solid platform with quiz creation, question management, and basic analytics. Includes proper role authorization but lacks some advanced monitoring and data visualization features.",
+        internalRoute: "/quiz-create",
+        threshold: 65
+      },
+      {
+        mark: "8/15",
+        justification: "Competent quiz system with basic user management, quiz listing, and attempt tracking. Includes TanStack Query for data fetching but lacks comprehensive analytics dashboards.",
+        internalRoute: "/quizzes",
+        threshold: 60
+      },
+      {
+        mark: "7/15",
+        justification: "Adequate platform with functioning quiz details page, attempt recording, and basic user interface components using Tailwind and ShadCN. Limited analytics capabilities.",
+        internalRoute: "/quiz-details",
+        threshold: 55
+      },
+      {
+        mark: "6/15",
+        justification: "Basic but functional platform with user profiles, simple quiz interfaces, and fundamental authentication. Missing advanced features like real-time monitoring and export functionality.",
+        internalRoute: "/profile",
+        threshold: 45
+      },
+      {
+        mark: "4/15",
+        justification: "Minimally functioning quiz application with authentication and basic quiz display. Lacks proper error handling, data visualization, and has limited user experience features.",
+        internalRoute: "/info",
+        threshold: 30
+      },
+      {
+        mark: "0/15",
+        justification: "Incomplete platform with critical features missing. Major issues with quiz functionality, authentication, or database integration requiring significant improvements to meet requirements.",
+        internalRoute: "/auth",
+        threshold: 0
       }
+    ];
+    
+    // Insert the new marks
+    for (const mark of defaultMarks) {
+      await storage.createMark(mark);
     }
+    
+    console.log("Successfully updated marks with 12 detailed features and internal routes");
   } catch (error) {
     console.error("Failed to seed default marks data:", error);
   }
