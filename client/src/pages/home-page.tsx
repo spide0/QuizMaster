@@ -430,8 +430,10 @@ export default function HomePage() {
                           <div className="mt-1">
                             <Progress 
                               value={stat.passRate} 
-                              className="h-1.5" 
-                              indicatorClassName={stat.passRate >= 70 ? "bg-green-500" : "bg-amber-500"}
+                              className="h-1.5"
+                              style={{ 
+                                '--progress-indicator-color': stat.passRate >= 70 ? '#22c55e' : '#f59e0b' 
+                              } as React.CSSProperties}
                             />
                           </div>
                         </td>

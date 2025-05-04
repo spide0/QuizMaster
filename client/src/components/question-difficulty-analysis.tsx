@@ -158,8 +158,10 @@ export function QuestionDifficultyAnalysis() {
                                     className="h-2"
                                     style={{
                                       background: question.difficulty === 'hard' ? '#fee2e2' : 
-                                                  question.difficulty === 'moderate' ? '#fef3c7' : '#dcfce7'
-                                    }}
+                                                  question.difficulty === 'moderate' ? '#fef3c7' : '#dcfce7',
+                                      '--progress-indicator-color': question.difficulty === 'hard' ? '#ef4444' : 
+                                                  question.difficulty === 'moderate' ? '#eab308' : '#22c55e'
+                                    } as React.CSSProperties}
                                   />
                                   <Info className="h-4 w-4 text-gray-400" />
                                 </div>
@@ -182,7 +184,7 @@ export function QuestionDifficultyAnalysis() {
                     ))}
                     {filteredQuestions.length === 0 && (
                       <tr className="bg-white border-b">
-                        <td colSpan={5} className="px-6 py-4 text-center">
+                        <td colSpan={6} className="px-6 py-4 text-center">
                           No questions found.
                         </td>
                       </tr>
