@@ -199,18 +199,18 @@ interface ChartData {
 }
 
 function DifficultyPieChart({ data }: { data: ChartData[] }) {
-  const [chartRef, setChartRef] = useState<HTMLDivElement | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
   
-  useState(() => {
-    if (chartRef && data && data.length > 0) {
+  useEffect(() => {
+    if (chartRef.current && data && data.length > 0) {
       // Clear previous chart
-      d3.select(chartRef as Element).selectAll('*').remove();
+      d3.select(chartRef.current as Element).selectAll('*').remove();
       
       const width = 400;
       const height = 300;
       const radius = Math.min(width, height) / 2;
       
-      const svg = d3.select(chartRef as Element)
+      const svg = d3.select(chartRef.current as Element)
         .append('svg')
         .attr('width', width)
         .attr('height', height)
@@ -292,9 +292,9 @@ function DifficultyPieChart({ data }: { data: ChartData[] }) {
         .style('font-size', '12px')
         .text((d: ChartData) => `${d.label} (${d.value})`);
     }
-  });
+  }, [data]);
   
   return (
-    <div className="h-[300px] w-full" ref={setChartRef}></div>
+    <div className="h-[300px] w-full" ref={chartRef}></div>
   );
 }
