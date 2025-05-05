@@ -966,11 +966,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       ];
       
-      // Return routes and masked API key
-      const apiKey = process.env.SUPERUSER_API_KEY || '';
-      const maskedApiKey = apiKey.length > 10
-        ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}`
-        : "[API KEY NOT SET]";
+      // Return routes and masked API key for the superuser
+      // We don't need to expose the actual API key since we're using a hardcoded value on the frontend
+      const maskedApiKey = "SUPERUSER_API_KEY";
       
       res.json({ 
         routes,
