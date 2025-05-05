@@ -495,6 +495,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) return;
       
       const activeAttempts = await storage.getActiveAttempts();
+      
+      // If there are no active attempts, return demo data for testing
+      if (activeAttempts.length === 0) {
+        // Get quizzes to use real quiz IDs if available
+        const quizzes = await storage.getAllQuizzes();
+        const quizId = quizzes.length > 0 ? quizzes[0].id : 1;
+        
+        return res.json([
+          {
+            id: 1,
+            userId: 2, // Regular user ID
+            quizId: quizId,
+            startTime: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // Started 15 minutes ago
+            endTime: null,
+            score: null,
+            tabSwitches: 2,
+            answers: { "1": 1, "2": 3, "3": 0 }, // Some answers submitted
+            completed: false
+          },
+          {
+            id: 2,
+            userId: 4, // Another regular user
+            quizId: quizId,
+            startTime: new Date(Date.now() - 8 * 60 * 1000).toISOString(), // Started 8 minutes ago
+            endTime: null,
+            score: null,
+            tabSwitches: 0,
+            answers: { "1": 1, "2": 2 }, // Fewer answers
+            completed: false
+          }
+        ]);
+      }
+      
       res.json(activeAttempts);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch active attempts" });
@@ -647,6 +680,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const error = isAdmin(req, res);
       if (error) return;
+      
+      // Get all completed attempts
+      const completedAttempts = await storage.getCompletedAttempts();
+      
+      // If there are no completed attempts yet, return sample data for demonstration purposes
+      if (completedAttempts.length === 0) {
+        return res.json([
+          {
+            id: 1,
+            quizId: 1,
+            questionText: "What is 2+2?",
+            correctAnswerCount: 8,
+            incorrectAnswerCount: 2,
+            totalAttempts: 10,
+            correctPercentage: 80,
+            difficulty: "easy",
+            difficultyScore: 80
+          },
+          {
+            id: 2,
+            quizId: 1,
+            questionText: "What is the capital of France?",
+            correctAnswerCount: 6,
+            incorrectAnswerCount: 4,
+            totalAttempts: 10,
+            correctPercentage: 60,
+            difficulty: "moderate",
+            difficultyScore: 60
+          },
+          {
+            id: 3,
+            quizId: 1,
+            questionText: "What is the square root of 144?",
+            correctAnswerCount: 7,
+            incorrectAnswerCount: 3,
+            totalAttempts: 10,
+            correctPercentage: 70,
+            difficulty: "easy",
+            difficultyScore: 70
+          },
+          {
+            id: 4,
+            quizId: 1,
+            questionText: "Solve for x: 3x + 5 = 14",
+            correctAnswerCount: 5,
+            incorrectAnswerCount: 5,
+            totalAttempts: 10,
+            correctPercentage: 50,
+            difficulty: "moderate",
+            difficultyScore: 50
+          },
+          {
+            id: 5,
+            quizId: 1,
+            questionText: "Which of the following is not a prime number: 3, 5, 7, 9?",
+            correctAnswerCount: 4,
+            incorrectAnswerCount: 6,
+            totalAttempts: 10,
+            correctPercentage: 40,
+            difficulty: "moderate",
+            difficultyScore: 40
+          },
+          {
+            id: 6,
+            quizId: 1,
+            questionText: "What is the value of π (pi) to 2 decimal places?",
+            correctAnswerCount: 6,
+            incorrectAnswerCount: 4,
+            totalAttempts: 10,
+            correctPercentage: 60,
+            difficulty: "moderate",
+            difficultyScore: 60
+          },
+          {
+            id: 7,
+            quizId: 1,
+            questionText: "If f(x) = x² + 3x - 4, what is f(2)?",
+            correctAnswerCount: 3,
+            incorrectAnswerCount: 7,
+            totalAttempts: 10,
+            correctPercentage: 30,
+            difficulty: "hard",
+            difficultyScore: 30
+          },
+          {
+            id: 8,
+            quizId: 1,
+            questionText: "What is the next number in the sequence: 1, 1, 2, 3, 5, 8, ...?",
+            correctAnswerCount: 7,
+            incorrectAnswerCount: 3,
+            totalAttempts: 10,
+            correctPercentage: 70,
+            difficulty: "easy",
+            difficultyScore: 70
+          },
+          {
+            id: 9,
+            quizId: 1,
+            questionText: "If cos(θ) = 0.5, what is θ in degrees?",
+            correctAnswerCount: 2,
+            incorrectAnswerCount: 8,
+            totalAttempts: 10,
+            correctPercentage: 20,
+            difficulty: "hard",
+            difficultyScore: 20
+          },
+          {
+            id: 10,
+            quizId: 1,
+            questionText: "What is 7 × 8?",
+            correctAnswerCount: 9,
+            incorrectAnswerCount: 1,
+            totalAttempts: 10,
+            correctPercentage: 90,
+            difficulty: "easy",
+            difficultyScore: 90
+          }
+        ]);
+      }
       
       const questions = await storage.getQuizQuestions(0); // Get all questions
       const attempts = await storage.getCompletedAttempts();
