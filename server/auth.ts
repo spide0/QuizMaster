@@ -20,7 +20,19 @@ import { fromZodError } from "zod-validation-error";
 
 declare global {
   namespace Express {
-    interface User extends User {}
+    // Extend Express.User with our custom User type properties
+    interface User {
+      id: number;
+      username: string;
+      email: string;
+      password: string;
+      profilePicture?: string | null;
+      role: string;
+      isVerified: boolean;
+      verificationToken?: string | null;
+      resetToken?: string | null;
+      createdAt: Date;
+    }
   }
 }
 
