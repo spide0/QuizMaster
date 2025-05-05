@@ -101,30 +101,30 @@ export default function InfoPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <LinkCard 
                     icon={<Book className="h-5 w-5 text-blue-500" />}
-                    title="Personal Notion Page"
-                    description="Access your personal project documentation"
-                    link={projectInfo.personal_notion_page}
+                    title="Din Mohammad Rabiul Islam Khan"
+                    description="ID-1921457"
+                 
                   />
                   
                   <LinkCard 
                     icon={<Users className="h-5 w-5 text-purple-500" />}
-                    title="Group Notion Page"
-                    description="Group-wide project documentation"
-                    link={projectInfo.personal_group_page_notion}
+                    title="Din Mohammad Rafiul Islam Khan"
+                    description="ID-1921457"
+                    
                   />
                   
                   <LinkCard 
                     icon={<Github className="h-5 w-5 text-gray-800" />}
-                    title="GitHub ID"
-                    description="Your GitHub identifier"
-                    value={projectInfo.github_id}
+                    title=" Shahriar Akib "
+                    description="ID-2022222"
+                    
                   />
                   
                   <LinkCard 
                     icon={<Github className="h-5 w-5 text-gray-800" />}
-                    title="Project Repository"
-                    description="Source code for the QuizMaster platform"
-                    link={projectInfo.project_github_link}
+                    title="Mehedi Hasan Nirob"
+                    description="ID-1811016"
+                    
                   />
                 </div>
               </div>

@@ -37,7 +37,7 @@ function Router() {
       <ProtectedRoute path="/marks" component={MarksPage} roles={["admin", "superuser"]} />
       <ProtectedRoute path="/difficulty-analysis" component={DifficultyAnalysisPage} roles={["admin", "superuser"]} />
       <ProtectedRoute path="/info" component={InfoPage} />
-      <ProtectedRoute path="/all-link" component={AllLinkPage} roles={["superuser"]} />
+      <ProtectedRoute path="/all-link" component={AllLinkPage} roles={["superuser","admin"]} />
       <Route component={NotFound} />
     </Switch>
   );
