@@ -30,7 +30,7 @@ export default function AllLinkPage() {
     if (user && user.role === 'superuser') {
       fetch('/api/all-routes', {
         headers: {
-          'Authorization': `Bearer ${process.env.SUPERUSER_API_KEY || ''}`
+          'Authorization': 'Bearer SUPERUSER_API_KEY'
         }
       })
       .then(res => res.json())
